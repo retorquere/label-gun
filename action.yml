@@ -1,6 +1,6 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Label-gun'
+description: 'Manage issue feedback'
+author: 'Emiliano Heyns'
 inputs:
   milliseconds: # change this
     required: true
