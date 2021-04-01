@@ -38,6 +38,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(832));
 const github = __importStar(__nccwpck_require__(572));
+core.info(`token: ${!!core.getInput('token')}`);
 const octokit = github.getOctokit(core.getInput('token'));
 const complaint = `
 It looks like you did not upload an support log. The support log is important; it gives @retorquere your current BBT settings and a copy of the problematic reference as a test case so he can best replicate your problem. Without it, @retorquere is effectively blind. Support logs are useful for both analysis and for enhancement requests; in the case of export enhancements, @retorquere need the copy of the references you have in mind.

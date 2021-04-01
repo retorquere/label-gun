@@ -7,6 +7,7 @@ import {
   Schema
 } from '@octokit/webhooks-definitions/schema'
 
+core.info(`token: ${!!core.getInput('token')}`)
 const octokit = github.getOctokit(core.getInput('token'))
 
 const complaint = `
