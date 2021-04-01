@@ -192,8 +192,9 @@ async function run(): Promise<void> {
     // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
 
     core.setOutput('needsSupportLog', needsSupportLog ? 'true' : 'false')
-  } catch (error) {
-    core.setFailed(error.message)
+  } catch (err) {
+    console.log('error:', err)
+    core.setFailed(err.message)
   }
 }
 
