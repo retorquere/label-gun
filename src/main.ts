@@ -189,7 +189,7 @@ async function run(): Promise<void> {
         }
       }
 
-      if (needsSupportLog) {
+      if (!isCollaborator && needsSupportLog) {
         if (hasSupportLogId) {
           await octokit.issues.removeLabel({
             owner,

@@ -207,7 +207,7 @@ function run() {
                         });
                     }
                 }
-                if (needsSupportLog) {
+                if (!isCollaborator && needsSupportLog) {
                     if (hasSupportLogId) {
                         yield octokit.issues.removeLabel({
                             owner,
