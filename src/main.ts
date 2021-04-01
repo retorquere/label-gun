@@ -46,11 +46,14 @@ async function run(): Promise<void> {
     const username = github.context.payload.sender?.login || ''
     core.info(`running on ${JSON.stringify({owner, repo, username})}`)
     core.info('request:isCollaborator')
-    const isCollaborator = await octokit.repos.checkCollaborator({
-      owner,
-      repo,
-      username
-    })
+
+    let isCollaborator = false
+    try {
+      await octokit.repos.checkCollaborator({ owner, repo, username })
+      isCollaborator = true
+    } catch (err) {
+      isCollaborator = false
+    }
 
     let labels: Label[] = []
     let body = ''

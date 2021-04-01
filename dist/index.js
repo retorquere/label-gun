@@ -73,11 +73,14 @@ function run() {
             const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
             core.info(`running on ${JSON.stringify({ owner, repo, username })}`);
             core.info('request:isCollaborator');
-            const isCollaborator = yield octokit.repos.checkCollaborator({
-                owner,
-                repo,
-                username
-            });
+            let isCollaborator = false;
+            try {
+                yield octokit.repos.checkCollaborator({ owner, repo, username });
+                isCollaborator = true;
+            }
+            catch (err) {
+                isCollaborator = false;
+            }
             let labels = [];
             let body = '';
             if (github.context.eventName == 'issues') {
