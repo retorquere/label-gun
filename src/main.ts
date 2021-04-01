@@ -51,7 +51,7 @@ const Labels = {
   awaiting: 'awaiting-user-feedback'
 }
 
-const prompt = 'Support ID:'
+const prompt = 'Support log ID:'
 
 function state() {}
 

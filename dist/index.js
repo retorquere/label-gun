@@ -78,7 +78,7 @@ const Labels = {
     needsSupportLog: 'needs-support-log',
     awaiting: 'awaiting-user-feedback'
 };
-const prompt = 'Support ID:';
+const prompt = 'Support log ID:';
 function state() { }
 function run() {
     var _a, _b, _c;
