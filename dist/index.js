@@ -69,6 +69,7 @@ function run() {
             const owner = ((_a = github.context.payload.repository) === null || _a === void 0 ? void 0 : _a.owner.login) || '';
             const repo = ((_b = github.context.payload.repository) === null || _b === void 0 ? void 0 : _b.name) || '';
             const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
+            core.info(`running on ${JSON.stringify({ owner, repo, username })}`);
             const isCollaborator = yield octokit.repos.checkCollaborator({
                 owner,
                 repo,

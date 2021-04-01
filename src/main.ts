@@ -42,6 +42,7 @@ async function run(): Promise<void> {
     const owner = github.context.payload.repository?.owner.login || ''
     const repo = github.context.payload.repository?.name || ''
     const username = github.context.payload.sender?.login || ''
+    core.info(`running on ${JSON.stringify({owner, repo, username})}`)
     const isCollaborator = await octokit.repos.checkCollaborator({
       owner,
       repo,
