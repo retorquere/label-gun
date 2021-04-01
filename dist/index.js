@@ -46,11 +46,12 @@ const repo = ((_b = github.context.payload.repository) === null || _b === void 0
 const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
+        core.info(`token: ${!!token}`);
         const isCollaborator = yield octokit.repos.checkCollaborator({ owner, repo, username });
         core.info(`isCollaborator: ${isCollaborator}`);
     });
 }
-run();
+run().catch(err => core.error(err));
 
 
 /***/ }),
