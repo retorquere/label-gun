@@ -9,7 +9,7 @@ const repo = github.context.payload.repository?.name || ''
 const username = github.context.payload.sender?.login || ''
 
 async function run() {
-  core.info(`token: ${!!token}`)
+  core.info(`token: ${!!token} ${JSON.stringify({ owner, repo, username })}`)
   const isCollaborator = await octokit.repos.checkCollaborator({ owner, repo, username })
   core.info(`isCollaborator: ${isCollaborator}`)
 }
