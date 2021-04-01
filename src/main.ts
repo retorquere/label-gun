@@ -43,6 +43,7 @@ async function run(): Promise<void> {
     const repo = github.context.payload.repository?.name || ''
     const username = github.context.payload.sender?.login || ''
     core.info(`running on ${JSON.stringify({owner, repo, username})}`)
+    core.debug('request:isCollaborator')
     const isCollaborator = await octokit.repos.checkCollaborator({
       owner,
       repo,
@@ -83,12 +84,14 @@ async function run(): Promise<void> {
       switch (event.action) {
         case 'opened':
           if (!isQuestion && !hasSupportLogId && !isCollaborator) {
+            core.debug('request:createComment')
             await octokit.issues.createComment({
               owner,
               repo,
               issue_number,
               body: complaint
             })
+            core.debug('request:addLabels')
             await octokit.issues.addLabels({
               owner,
               repo,
@@ -101,6 +104,7 @@ async function run(): Promise<void> {
 
         case 'edited':
           if (needsSupportLog && hasSupportLogId) {
+            core.debug('request:removeLabel')
             await octokit.issues.removeLabel({
               owner,
               repo,
@@ -109,6 +113,7 @@ async function run(): Promise<void> {
             })
             needsSupportLog = false
           } else if (!prompted) {
+            core.debug('request:update')
             await octokit.issues.update({
               owner,
               repo,
@@ -120,12 +125,14 @@ async function run(): Promise<void> {
 
         case 'closed':
           if (!isCollaborator && !isQuestion) {
+            core.debug('request:update')
             await octokit.issues.update({
               owner,
               repo,
               issue_number,
               state: 'open'
             })
+            core.debug('request:createComment')
             await octokit.issues.createComment({
               owner,
               repo,
@@ -133,6 +140,7 @@ async function run(): Promise<void> {
               body: `@${owner} prefers to keep bugreports/enhancements open until the change is merged into a new release.`
             })
           } else if (awaiting || needsSupportLog) {
+            core.debug('request:setLabels')
             await octokit.issues.setLabels({
               owner,
               repo,
@@ -154,6 +162,7 @@ async function run(): Promise<void> {
 
       if (event.action === 'created') {
         if (isCollaborator) {
+          core.debug('request:addLabels')
           await octokit.issues.addLabels({
             owner,
             repo,
@@ -161,6 +170,7 @@ async function run(): Promise<void> {
             labels: [Labels.awaiting]
           })
         } else {
+          core.debug('request:removeLabels')
           await octokit.issues.removeLabel({
             owner,
             repo,
@@ -172,6 +182,7 @@ async function run(): Promise<void> {
 
       if (needsSupportLog) {
         if (hasSupportLogId) {
+          core.debug('request:removeLabel')
           await octokit.issues.removeLabel({
             owner,
             repo,
@@ -180,6 +191,7 @@ async function run(): Promise<void> {
           })
           needsSupportLog = false
         } else if (!prompted) {
+          core.debug('request:updateComment')
           await octokit.issues.updateComment({
             owner,
             repo,
