@@ -40,7 +40,6 @@ const stringify = __nccwpck_require__(424);
 const core = __importStar(__nccwpck_require__(832));
 const github = __importStar(__nccwpck_require__(572));
 const token = core.getInput('token');
-core.info(`token: ${!!token}`);
 const octokit = github.getOctokit(token);
 /*
 octokit.hook.wrap('request', async (request, options) => {
@@ -89,7 +88,6 @@ function run() {
             const owner = ((_a = github.context.payload.repository) === null || _a === void 0 ? void 0 : _a.owner.login) || '';
             const repo = ((_b = github.context.payload.repository) === null || _b === void 0 ? void 0 : _b.name) || '';
             const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
-            core.info(`running on ${stringify({ owner, repo, username })}`);
             let isCollaborator = false;
             try {
                 yield octokit.repos.checkCollaborator({ owner, repo, username });
@@ -98,7 +96,6 @@ function run() {
             catch (err) {
                 isCollaborator = false;
             }
-            core.info(`isCollaborator ${isCollaborator}`);
             let labels = [];
             let body = '';
             if (github.context.eventName == 'issues') {
@@ -115,7 +112,6 @@ function run() {
                     body = event.comment.body;
                 }
             }
-            core.info(`labels ${stringify(labels)}`);
             const isQuestion = labels.map(label => label.name).join(',') === 'question';
             let needsSupportLog = !!labels.find(label => label.name === Labels.needsSupportLog);
             const awaiting = !!labels.find(label => label.name === Labels.awaiting);
@@ -127,14 +123,12 @@ function run() {
                 switch (event.action) {
                     case 'opened':
                         if (!isQuestion && !hasSupportLogId && !isCollaborator) {
-                            core.info('request:createComment');
                             yield octokit.issues.createComment({
                                 owner,
                                 repo,
                                 issue_number,
                                 body: complaint
                             });
-                            core.info('request:addLabels');
                             yield octokit.issues.addLabels({
                                 owner,
                                 repo,
@@ -146,7 +140,6 @@ function run() {
                         break;
                     case 'edited':
                         if (needsSupportLog && hasSupportLogId) {
-                            core.info('request:removeLabel');
                             yield octokit.issues.removeLabel({
                                 owner,
                                 repo,
@@ -156,7 +149,6 @@ function run() {
                             needsSupportLog = false;
                         }
                         else if (!prompted) {
-                            core.info('request:update');
                             yield octokit.issues.update({
                                 owner,
                                 repo,
@@ -167,14 +159,12 @@ function run() {
                         break;
                     case 'closed':
                         if (!isCollaborator && !isQuestion) {
-                            core.info('request:update');
                             yield octokit.issues.update({
                                 owner,
                                 repo,
                                 issue_number,
                                 state: 'open'
                             });
-                            core.info('request:createComment');
                             yield octokit.issues.createComment({
                                 owner,
                                 repo,
@@ -183,7 +173,6 @@ function run() {
                             });
                         }
                         else if (awaiting || needsSupportLog) {
-                            core.info('request:setLabels');
                             yield octokit.issues.setLabels({
                                 owner,
                                 repo,
@@ -202,7 +191,6 @@ function run() {
                 const event = github.context.payload;
                 if (event.action === 'created') {
                     if (isCollaborator) {
-                        core.info('request:addLabels');
                         yield octokit.issues.addLabels({
                             owner,
                             repo,
@@ -211,7 +199,6 @@ function run() {
                         });
                     }
                     else if (awaiting) {
-                        core.info('request:removeLabels');
                         yield octokit.issues.removeLabel({
                             owner,
                             repo,
@@ -222,7 +209,6 @@ function run() {
                 }
                 if (needsSupportLog) {
                     if (hasSupportLogId) {
-                        core.info('request:removeLabel');
                         yield octokit.issues.removeLabel({
                             owner,
                             repo,
@@ -232,7 +218,6 @@ function run() {
                         needsSupportLog = false;
                     }
                     else if (!prompted) {
-                        core.info('request:updateComment');
                         yield octokit.issues.updateComment({
                             owner,
                             repo,
@@ -242,11 +227,10 @@ function run() {
                     }
                 }
             }
-            // core.info(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
             core.setOutput('needsSupportLog', needsSupportLog ? 'true' : 'false');
         }
         catch (err) {
-            core.info(`error: ${err}\n${err.stack}`);
+            core.error(`error: ${err}\n${err.stack}`);
             core.setFailed(err.message);
         }
     });

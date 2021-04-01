@@ -9,7 +9,6 @@ import {
 } from '@octokit/webhooks-definitions/schema'
 
 const token = core.getInput('token')
-core.info(`token: ${!!token}`)
 const octokit = github.getOctokit(token)
 
 /*
@@ -63,7 +62,6 @@ async function run(): Promise<void> {
     const owner = github.context.payload.repository?.owner.login || ''
     const repo = github.context.payload.repository?.name || ''
     const username = github.context.payload.sender?.login || ''
-    core.info(`running on ${stringify({owner, repo, username})}`)
 
     let isCollaborator = false
     try {
@@ -72,7 +70,6 @@ async function run(): Promise<void> {
     } catch (err) {
       isCollaborator = false
     }
-    core.info(`isCollaborator ${isCollaborator}`)
 
     let labels: Label[] = []
     let body = ''
@@ -89,7 +86,6 @@ async function run(): Promise<void> {
         body = event.comment.body
       }
     }
-    core.info(`labels ${stringify(labels)}`)
 
     const isQuestion = labels.map(label => label.name).join(',') === 'question'
     let needsSupportLog = !!labels.find(
@@ -106,14 +102,12 @@ async function run(): Promise<void> {
       switch (event.action) {
         case 'opened':
           if (!isQuestion && !hasSupportLogId && !isCollaborator) {
-            core.info('request:createComment')
             await octokit.issues.createComment({
               owner,
               repo,
               issue_number,
               body: complaint
             })
-            core.info('request:addLabels')
             await octokit.issues.addLabels({
               owner,
               repo,
@@ -126,7 +120,6 @@ async function run(): Promise<void> {
 
         case 'edited':
           if (needsSupportLog && hasSupportLogId) {
-            core.info('request:removeLabel')
             await octokit.issues.removeLabel({
               owner,
               repo,
@@ -135,7 +128,6 @@ async function run(): Promise<void> {
             })
             needsSupportLog = false
           } else if (!prompted) {
-            core.info('request:update')
             await octokit.issues.update({
               owner,
               repo,
@@ -147,14 +139,12 @@ async function run(): Promise<void> {
 
         case 'closed':
           if (!isCollaborator && !isQuestion) {
-            core.info('request:update')
             await octokit.issues.update({
               owner,
               repo,
               issue_number,
               state: 'open'
             })
-            core.info('request:createComment')
             await octokit.issues.createComment({
               owner,
               repo,
@@ -162,7 +152,6 @@ async function run(): Promise<void> {
               body: `@${owner} prefers to keep bugreports/enhancements open until the change is merged into a new release.`
             })
           } else if (awaiting || needsSupportLog) {
-            core.info('request:setLabels')
             await octokit.issues.setLabels({
               owner,
               repo,
@@ -184,7 +173,6 @@ async function run(): Promise<void> {
 
       if (event.action === 'created') {
         if (isCollaborator) {
-          core.info('request:addLabels')
           await octokit.issues.addLabels({
             owner,
             repo,
@@ -192,7 +180,6 @@ async function run(): Promise<void> {
             labels: [Labels.awaiting]
           })
         } else if (awaiting) {
-          core.info('request:removeLabels')
           await octokit.issues.removeLabel({
             owner,
             repo,
@@ -204,7 +191,6 @@ async function run(): Promise<void> {
 
       if (needsSupportLog) {
         if (hasSupportLogId) {
-          core.info('request:removeLabel')
           await octokit.issues.removeLabel({
             owner,
             repo,
@@ -213,7 +199,6 @@ async function run(): Promise<void> {
           })
           needsSupportLog = false
         } else if (!prompted) {
-          core.info('request:updateComment')
           await octokit.issues.updateComment({
             owner,
             repo,
@@ -224,11 +209,9 @@ async function run(): Promise<void> {
       }
     }
 
-    // core.info(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-
     core.setOutput('needsSupportLog', needsSupportLog ? 'true' : 'false')
   } catch (err) {
-    core.info(`error: ${err}\n${err.stack}`)
+    core.error(`error: ${err}\n${err.stack}`)
     core.setFailed(err.message)
   }
 }
