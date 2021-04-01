@@ -42,22 +42,23 @@ const github = __importStar(__nccwpck_require__(572));
 const token = core.getInput('token');
 core.info(`token: ${!!token}`);
 const octokit = github.getOctokit(token);
-octokit.hook.wrap('request', (request, options) => __awaiter(void 0, void 0, void 0, function* () {
-    const start = Date.now();
-    try {
-        const response = yield request(options);
-        core.info(stringify({
-            request: options,
-            time: Date.now() - start
-        }));
-        return response;
-    }
-    catch (error) {
-        error.time = Date.now() - start;
-        core.error(error);
-        throw error;
-    }
-}));
+/*
+octokit.hook.wrap('request', async (request, options) => {
+  const start = Date.now()
+  try {
+    const response = await request(options)
+    core.info(stringify({
+      request: options,
+      time: Date.now() - start
+    }))
+    return response
+  } catch (error) {
+    error.time = Date.now() - start
+    core.error(error)
+    throw error
+  }
+})
+*/
 const complaint = `
 It looks like you did not upload an support log. The support log is important; it gives @retorquere your current BBT settings and a copy of the problematic reference as a test case so he can best replicate your problem. Without it, @retorquere is effectively blind. Support logs are useful for both analysis and for enhancement requests; in the case of export enhancements, @retorquere need the copy of the references you have in mind.
 
