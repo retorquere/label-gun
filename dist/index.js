@@ -70,7 +70,7 @@ function run() {
             const repo = ((_b = github.context.payload.repository) === null || _b === void 0 ? void 0 : _b.name) || '';
             const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
             core.info(`running on ${JSON.stringify({ owner, repo, username })}`);
-            core.debug('request:isCollaborator');
+            core.info('request:isCollaborator');
             const isCollaborator = yield octokit.repos.checkCollaborator({
                 owner,
                 repo,
@@ -106,14 +106,14 @@ function run() {
                 switch (event.action) {
                     case 'opened':
                         if (!isQuestion && !hasSupportLogId && !isCollaborator) {
-                            core.debug('request:createComment');
+                            core.info('request:createComment');
                             yield octokit.issues.createComment({
                                 owner,
                                 repo,
                                 issue_number,
                                 body: complaint
                             });
-                            core.debug('request:addLabels');
+                            core.info('request:addLabels');
                             yield octokit.issues.addLabels({
                                 owner,
                                 repo,
@@ -125,7 +125,7 @@ function run() {
                         break;
                     case 'edited':
                         if (needsSupportLog && hasSupportLogId) {
-                            core.debug('request:removeLabel');
+                            core.info('request:removeLabel');
                             yield octokit.issues.removeLabel({
                                 owner,
                                 repo,
@@ -135,7 +135,7 @@ function run() {
                             needsSupportLog = false;
                         }
                         else if (!prompted) {
-                            core.debug('request:update');
+                            core.info('request:update');
                             yield octokit.issues.update({
                                 owner,
                                 repo,
@@ -146,14 +146,14 @@ function run() {
                         break;
                     case 'closed':
                         if (!isCollaborator && !isQuestion) {
-                            core.debug('request:update');
+                            core.info('request:update');
                             yield octokit.issues.update({
                                 owner,
                                 repo,
                                 issue_number,
                                 state: 'open'
                             });
-                            core.debug('request:createComment');
+                            core.info('request:createComment');
                             yield octokit.issues.createComment({
                                 owner,
                                 repo,
@@ -162,7 +162,7 @@ function run() {
                             });
                         }
                         else if (awaiting || needsSupportLog) {
-                            core.debug('request:setLabels');
+                            core.info('request:setLabels');
                             yield octokit.issues.setLabels({
                                 owner,
                                 repo,
@@ -181,7 +181,7 @@ function run() {
                 const event = github.context.payload;
                 if (event.action === 'created') {
                     if (isCollaborator) {
-                        core.debug('request:addLabels');
+                        core.info('request:addLabels');
                         yield octokit.issues.addLabels({
                             owner,
                             repo,
@@ -190,7 +190,7 @@ function run() {
                         });
                     }
                     else {
-                        core.debug('request:removeLabels');
+                        core.info('request:removeLabels');
                         yield octokit.issues.removeLabel({
                             owner,
                             repo,
@@ -201,7 +201,7 @@ function run() {
                 }
                 if (needsSupportLog) {
                     if (hasSupportLogId) {
-                        core.debug('request:removeLabel');
+                        core.info('request:removeLabel');
                         yield octokit.issues.removeLabel({
                             owner,
                             repo,
@@ -211,7 +211,7 @@ function run() {
                         needsSupportLog = false;
                     }
                     else if (!prompted) {
-                        core.debug('request:updateComment');
+                        core.info('request:updateComment');
                         yield octokit.issues.updateComment({
                             owner,
                             repo,
@@ -221,7 +221,7 @@ function run() {
                     }
                 }
             }
-            // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
+            // core.info(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
             core.setOutput('needsSupportLog', needsSupportLog ? 'true' : 'false');
         }
         catch (err) {

@@ -43,7 +43,7 @@ async function run(): Promise<void> {
     const repo = github.context.payload.repository?.name || ''
     const username = github.context.payload.sender?.login || ''
     core.info(`running on ${JSON.stringify({owner, repo, username})}`)
-    core.debug('request:isCollaborator')
+    core.info('request:isCollaborator')
     const isCollaborator = await octokit.repos.checkCollaborator({
       owner,
       repo,
@@ -84,14 +84,14 @@ async function run(): Promise<void> {
       switch (event.action) {
         case 'opened':
           if (!isQuestion && !hasSupportLogId && !isCollaborator) {
-            core.debug('request:createComment')
+            core.info('request:createComment')
             await octokit.issues.createComment({
               owner,
               repo,
               issue_number,
               body: complaint
             })
-            core.debug('request:addLabels')
+            core.info('request:addLabels')
             await octokit.issues.addLabels({
               owner,
               repo,
@@ -104,7 +104,7 @@ async function run(): Promise<void> {
 
         case 'edited':
           if (needsSupportLog && hasSupportLogId) {
-            core.debug('request:removeLabel')
+            core.info('request:removeLabel')
             await octokit.issues.removeLabel({
               owner,
               repo,
@@ -113,7 +113,7 @@ async function run(): Promise<void> {
             })
             needsSupportLog = false
           } else if (!prompted) {
-            core.debug('request:update')
+            core.info('request:update')
             await octokit.issues.update({
               owner,
               repo,
@@ -125,14 +125,14 @@ async function run(): Promise<void> {
 
         case 'closed':
           if (!isCollaborator && !isQuestion) {
-            core.debug('request:update')
+            core.info('request:update')
             await octokit.issues.update({
               owner,
               repo,
               issue_number,
               state: 'open'
             })
-            core.debug('request:createComment')
+            core.info('request:createComment')
             await octokit.issues.createComment({
               owner,
               repo,
@@ -140,7 +140,7 @@ async function run(): Promise<void> {
               body: `@${owner} prefers to keep bugreports/enhancements open until the change is merged into a new release.`
             })
           } else if (awaiting || needsSupportLog) {
-            core.debug('request:setLabels')
+            core.info('request:setLabels')
             await octokit.issues.setLabels({
               owner,
               repo,
@@ -162,7 +162,7 @@ async function run(): Promise<void> {
 
       if (event.action === 'created') {
         if (isCollaborator) {
-          core.debug('request:addLabels')
+          core.info('request:addLabels')
           await octokit.issues.addLabels({
             owner,
             repo,
@@ -170,7 +170,7 @@ async function run(): Promise<void> {
             labels: [Labels.awaiting]
           })
         } else {
-          core.debug('request:removeLabels')
+          core.info('request:removeLabels')
           await octokit.issues.removeLabel({
             owner,
             repo,
@@ -182,7 +182,7 @@ async function run(): Promise<void> {
 
       if (needsSupportLog) {
         if (hasSupportLogId) {
-          core.debug('request:removeLabel')
+          core.info('request:removeLabel')
           await octokit.issues.removeLabel({
             owner,
             repo,
@@ -191,7 +191,7 @@ async function run(): Promise<void> {
           })
           needsSupportLog = false
         } else if (!prompted) {
-          core.debug('request:updateComment')
+          core.info('request:updateComment')
           await octokit.issues.updateComment({
             owner,
             repo,
@@ -202,7 +202,7 @@ async function run(): Promise<void> {
       }
     }
 
-    // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
+    // core.info(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
 
     core.setOutput('needsSupportLog', needsSupportLog ? 'true' : 'false')
   } catch (err) {
