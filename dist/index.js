@@ -40,7 +40,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(832));
 const github = __importStar(__nccwpck_require__(572));
 const token = core.getInput('token');
-const octokit = github.getOctokit(token);
+const octokit = github.getOctokit(token, { required: true });
 const owner = ((_a = github.context.payload.repository) === null || _a === void 0 ? void 0 : _a.owner.login) || '';
 const repo = ((_b = github.context.payload.repository) === null || _b === void 0 ? void 0 : _b.name) || '';
 const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';

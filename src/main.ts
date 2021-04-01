@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 
 const token = core.getInput('token')
-const octokit = github.getOctokit(token)
+const octokit = github.getOctokit(token, { required: true })
 
 const owner = github.context.payload.repository?.owner.login || ''
 const repo = github.context.payload.repository?.name || ''
