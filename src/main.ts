@@ -191,7 +191,7 @@ async function run(): Promise<void> {
             issue_number: event.issue.number,
             labels: [Labels.awaiting]
           })
-        } else {
+        } else if (awaiting) {
           core.info('request:removeLabels')
           await octokit.issues.removeLabel({
             owner,

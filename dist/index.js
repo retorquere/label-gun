@@ -210,7 +210,7 @@ function run() {
                             labels: [Labels.awaiting]
                         });
                     }
-                    else {
+                    else if (awaiting) {
                         core.info('request:removeLabels');
                         yield octokit.issues.removeLabel({
                             owner,
