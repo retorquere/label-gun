@@ -9,7 +9,14 @@ import {
 
 const token = core.getInput('token')
 core.info(`token: ${!!token}`)
-const octokit = github.getOctokit(token)
+const octokit = github.getOctokit(token, {
+  log: {
+    debug: message => core.info(`debug: ${message}`),
+    info: message => core.info(`info: ${message}`),
+    warn: message => core.info(`warn: ${message}`),
+    error: message => core.error(`error: ${message}`),
+  }
+})
 
 const complaint = `
 It looks like you did not upload an support log. The support log is important; it gives @retorquere your current BBT settings and a copy of the problematic reference as a test case so he can best replicate your problem. Without it, @retorquere is effectively blind. Support logs are useful for both analysis and for enhancement requests; in the case of export enhancements, @retorquere need the copy of the references you have in mind.
@@ -45,7 +52,6 @@ async function run(): Promise<void> {
     const repo = github.context.payload.repository?.name || ''
     const username = github.context.payload.sender?.login || ''
     core.info(`running on ${JSON.stringify({owner, repo, username})}`)
-    core.info('request:isCollaborator')
 
     let isCollaborator = false
     try {
@@ -54,6 +60,7 @@ async function run(): Promise<void> {
     } catch (err) {
       isCollaborator = false
     }
+    core.info(`isCollaborator ${isCollaborator}`)
 
     let labels: Label[] = []
     let body = ''
@@ -70,6 +77,7 @@ async function run(): Promise<void> {
         body = event.comment.body
       }
     }
+    core.info(`labels ${labels}`)
 
     const isQuestion = labels.map(label => label.name).join(',') === 'question'
     let needsSupportLog = !!labels.find(
@@ -78,9 +86,6 @@ async function run(): Promise<void> {
     const awaiting = !!labels.find(label => label.name === Labels.awaiting)
     const hasSupportLogId = body.match(/[A-Z0-9]{8}-(apse|euc)/)
     const prompted = body.includes(prompt)
-
-    const tag: string = core.getInput('tag')
-    if (tag && !labels.find(label => label.name == tag)) return
 
     if (github.context.eventName === 'issues') {
       const event = github.context.payload as IssuesEvent
