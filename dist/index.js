@@ -38,8 +38,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(832));
 const github = __importStar(__nccwpck_require__(572));
-core.info(`token: ${!!core.getInput('token')}`);
-const octokit = github.getOctokit(core.getInput('token'));
+const token = core.getInput('token');
+core.info(`token: ${!!token}`);
+const octokit = github.getOctokit(token);
 const complaint = `
 It looks like you did not upload an support log. The support log is important; it gives @retorquere your current BBT settings and a copy of the problematic reference as a test case so he can best replicate your problem. Without it, @retorquere is effectively blind. Support logs are useful for both analysis and for enhancement requests; in the case of export enhancements, @retorquere need the copy of the references you have in mind.
 
@@ -72,11 +73,7 @@ function run() {
             const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
             core.info(`running on ${JSON.stringify({ owner, repo, username })}`);
             core.info('request:isCollaborator');
-            const isCollaborator = yield octokit.repos.checkCollaborator({
-                owner,
-                repo,
-                username
-            });
+            const isCollaborator = yield octokit.repos.checkCollaborator({ owner, repo, username });
             let labels = [];
             let body = '';
             if (github.context.eventName == 'issues') {
