@@ -115,7 +115,7 @@ function run() {
                     body = event.comment.body;
                 }
             }
-            core.info(`labels ${labels}`);
+            core.info(`labels ${stringify(labels)}`);
             const isQuestion = labels.map(label => label.name).join(',') === 'question';
             let needsSupportLog = !!labels.find(label => label.name === Labels.needsSupportLog);
             const awaiting = !!labels.find(label => label.name === Labels.awaiting);

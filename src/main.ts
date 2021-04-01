@@ -89,7 +89,7 @@ async function run(): Promise<void> {
         body = event.comment.body
       }
     }
-    core.info(`labels ${labels}`)
+    core.info(`labels ${stringify(labels)}`)
 
     const isQuestion = labels.map(label => label.name).join(',') === 'question'
     let needsSupportLog = !!labels.find(
