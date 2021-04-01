@@ -2,8 +2,11 @@ name: 'Label-gun'
 description: 'Manage issue feedback'
 author: 'Emiliano Heyns'
 inputs:
-  tag:
+  token:
     required: true
+    description: 'token to post to the issue list'
+  tag:
+    required: false
     description: 'only act on issues with this tag'
     default: 'label-gun'
 runs:
