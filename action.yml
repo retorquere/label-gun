@@ -2,10 +2,10 @@ name: 'Label-gun'
 description: 'Manage issue feedback'
 author: 'Emiliano Heyns'
 inputs:
-  milliseconds: # change this
+  tag:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: 'only act on issues with this tag'
+    default: 'label-gun'
 runs:
   using: 'node12'
   main: 'dist/index.js'

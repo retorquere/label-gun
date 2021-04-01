@@ -5,6 +5,10 @@ on: # rebuild any PRs and main branch changes
     branches:
       - main
       - 'releases/*'
+  issues:
+    types: [opened, edited, closed]
+  issue_comment:
+    types: [created, edited, closed]
 
 jobs:
   build: # make sure build/ci work properly
@@ -14,11 +18,11 @@ jobs:
       - run: |
           npm install
       - run: |
-          npm run all
+          npm start
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: ./
         with:
-          milliseconds: 1000
+          token: ${ github.secret }
