@@ -25,4 +25,4 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./
         with:
-          token: ${ github.secret }
+          token: ${{ secrets.GITHUB_TOKEN }}
