@@ -28,7 +28,8 @@
     "@actions/github": "^4.0.0",
     "@octokit/request-error": "^2.0.5",
     "@octokit/webhooks": "^8.10.1",
-    "@octokit/webhooks-definitions": "^3.65.6"
+    "@octokit/webhooks-definitions": "^3.65.6",
+    "fast-safe-stringify": "^2.0.7"
   },
   "devDependencies": {
     "@types/jest": "^26.0.22",

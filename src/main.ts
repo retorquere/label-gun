@@ -1,3 +1,4 @@
+const stringify = require('fast-safe-stringify')
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {
@@ -15,7 +16,7 @@ octokit.hook.wrap('request', async (request, options) => {
   const start = Date.now()
   try {
     const response = await request(options)
-    core.info(JSON.stringify({
+    core.info(stringify({
       request: options,
       time: Date.now() - start
     }))
@@ -60,7 +61,7 @@ async function run(): Promise<void> {
     const owner = github.context.payload.repository?.owner.login || ''
     const repo = github.context.payload.repository?.name || ''
     const username = github.context.payload.sender?.login || ''
-    core.info(`running on ${JSON.stringify({owner, repo, username})}`)
+    core.info(`running on ${stringify({owner, repo, username})}`)
 
     let isCollaborator = false
     try {
