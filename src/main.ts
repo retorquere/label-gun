@@ -193,7 +193,7 @@ async function run(): Promise<void> {
 
     core.setOutput('needsSupportLog', needsSupportLog ? 'true' : 'false')
   } catch (err) {
-    console.log('error:', err)
+    core.info(`error: ${err}\n${err.stack}`)
     core.setFailed(err.message)
   }
 }

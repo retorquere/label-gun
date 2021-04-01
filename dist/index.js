@@ -103,7 +103,7 @@ function run() {
                 const issue_number = event.issue.number;
                 switch (event.action) {
                     case 'opened':
-                        if (!isQuestion && !hasSupportLogId) {
+                        if (!isQuestion && !hasSupportLogId && !isCollaborator) {
                             yield octokit.issues.createComment({
                                 owner,
                                 repo,
@@ -211,8 +211,9 @@ function run() {
             // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
             core.setOutput('needsSupportLog', needsSupportLog ? 'true' : 'false');
         }
-        catch (error) {
-            core.setFailed(error.message);
+        catch (err) {
+            core.info(`error: ${err}\n${err.stack}`);
+            core.setFailed(err.message);
         }
     });
 }
