@@ -9,12 +9,21 @@ import {
 
 const token = core.getInput('token')
 core.info(`token: ${!!token}`)
-const octokit = github.getOctokit(token, {
-  log: {
-    debug: message => core.info(`debug: ${message}`),
-    info: message => core.info(`info: ${message}`),
-    warn: message => core.info(`warn: ${message}`),
-    error: message => core.error(`error: ${message}`),
+const octokit = github.getOctokit(token)
+
+octokit.hook.wrap('request', async (request, options) => {
+  const start = Date.now()
+  try {
+    const response = await request(options)
+    core.info(JSON.stringify({
+      request: options,
+      time: Date.now() - start
+    }))
+    return response
+  } catch (error) {
+    error.time = Date.now() - start
+    core.error(error)
+    throw error
   }
 })
 
