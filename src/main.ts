@@ -70,6 +70,7 @@ async function run(): Promise<void> {
     } catch (err) {
       isCollaborator = false
     }
+    core.info('action by ' + JSON.stringify({ username, isCollaborator }))
 
     let labels: Label[] = []
     let body = ''

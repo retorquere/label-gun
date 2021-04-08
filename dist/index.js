@@ -96,6 +96,7 @@ function run() {
             catch (err) {
                 isCollaborator = false;
             }
+            core.info('action by ' + JSON.stringify({ username, isCollaborator }));
             let labels = [];
             let body = '';
             if (github.context.eventName == 'issues') {
