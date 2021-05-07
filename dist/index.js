@@ -58,14 +58,23 @@ octokit.hook.wrap('request', async (request, options) => {
   }
 })
 */
+const Labels = {
+    needsSupportLog: 'needs-support-log',
+    awaiting: 'awaiting-user-feedback',
+    needsReferences: ['export', 'citekey'],
+};
+const Reasons = {
+    nolog: 'It looks like you did not upload an support log. ',
+    norefs: 'It looks like you did not upload an support log with sample references. ',
+};
 const complaint = `
-It looks like you did not upload an support log. The support log is important; it gives @retorquere your current BBT settings and a copy of the problematic reference as a test case so he can best replicate your problem. Without it, @retorquere is effectively blind. Support logs are useful for both analysis and for enhancement requests; in the case of export enhancements, @retorquere need the copy of the references you have in mind.
+The support log is important; it gives @retorquere your current BBT settings and a copy of the problematic reference as a test case so he can best replicate your problem. Without it, @retorquere is effectively blind. Support logs are useful for both analysis and for enhancement requests; in the case of export enhancements, @retorquere need the copy of the references you have in mind.
 
-If you did try to submit a support log, but the ID looked like \`D<number>\`, that is a Zotero debug report, which @retorquere cannot access. Please re-submit a BBT debug log by one of the methods below. BBT support log IDs end in \`-apse\` or \`-euc\`.
+If you did try to submit a support log, but the ID looked like \`D<number>\`, that is a Zotero debug report, which @retorquere cannot access. Please re-submit a BBT debug log by one of the methods below. BBT support log IDs end in \`-apse\` or \`-euc\`. Support logs that include sample references will end in \`-refs-apse\` or \`-refs-euc\`; these are the type @retorquere needs for ${Labels.needsReferences.join(' or ')} issues.
 
 **This request is much more likely than not to apply to you, too, _even if you think it unlikely_**, and even if it does not, there's no harm in sending a debug log that turns out to be unnecessary. @retorquere will usually just end up saying "please send a debug log first". Let's just skip over the unnecesary delay this entails. Sending a debug log is very easy, depending on your situation, follow one of these procedures::
 
-1. If your issue relates to how BBT behaves around a **specific reference(s)**, such as citekey generation or export, select at least one of the problematic reference(s), right-click it, and submit an BBT support log from that popup menu. If the problem is with export, please do include a sample of what you see exported, and what you expected to see exported for these references, either by pasting it in a comment here (if it is small) or attaching it as a \`.txt\` file (if it's large).
+1. If your issue relates to how BBT behaves around a **specific reference(s)**, such as citekey generation or export, select at least one of the problematic reference(s), right-click it, and submit an BBT support log from that popup menu. If the problem is with export, please do include a sample of what you see exported, and what you expected to see exported for these references, either by pasting it in a comment here (if it is small) or attaching it as a \`.txt\` file (if it's large). These logs will have an ID that ends in \`-refs-apse\` or \`-refs-euc\`.
 
 2. If the issue **does not relate to references** and is of a more general nature, generate an support log by restarting Zotero with debugging enabled (\`Help\` -> \`Debug Output Logging\` -> \`Restart with logging enabled\`), reproducing your problem, and selecting \`Send Better BibTeX debug report...\` from the help menu.
 
@@ -73,14 +82,10 @@ Once done, you will see a support log ID in red. Please post that support log id
 
 Thank you!
 `;
-const Labels = {
-    needsSupportLog: 'needs-support-log',
-    awaiting: 'awaiting-user-feedback'
-};
 const prompt = 'Support log ID:';
 function state() { }
 function run() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             // https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads#issue_comment
@@ -88,6 +93,7 @@ function run() {
             const owner = ((_a = github.context.payload.repository) === null || _a === void 0 ? void 0 : _a.owner.login) || '';
             const repo = ((_b = github.context.payload.repository) === null || _b === void 0 ? void 0 : _b.name) || '';
             const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
+            const noclose = `Thanks for the feedback; there's no way you could have known, but @${owner} prefers to keep bugreports/enhancements open as a remninder to merge the change into a new release.`;
             let isCollaborator = false;
             try {
                 yield octokit.repos.checkCollaborator({ owner, repo, username });
@@ -115,8 +121,10 @@ function run() {
             }
             const isQuestion = labels.map(label => label.name).join(',') === 'question';
             let needsSupportLog = !!labels.find(label => label.name === Labels.needsSupportLog);
+            const needsReferences = false; // !!labels.find(label => Labels.needsReferences.includes(label.name))
             const awaiting = !!labels.find(label => label.name === Labels.awaiting);
-            const hasSupportLogId = body.match(/[A-Z0-9]{8}-(apse|euc)/);
+            const hasSupportLogId = (_d = body.match(/[A-Z0-9]{8}(-refs)?-(apse|euc)/)) === null || _d === void 0 ? void 0 : _d[0];
+            const hasReferences = body.match(/[A-Z0-9]{8}-refs-(apse|euc)/);
             const prompted = body.includes(prompt);
             if (github.context.eventName === 'issues') {
                 const event = github.context.payload;
@@ -124,54 +132,25 @@ function run() {
                 switch (event.action) {
                     case 'opened':
                         if (!isQuestion && !hasSupportLogId && !isCollaborator) {
-                            yield octokit.issues.createComment({
-                                owner,
-                                repo,
-                                issue_number,
-                                body: complaint
-                            });
-                            yield octokit.issues.addLabels({
-                                owner,
-                                repo,
-                                issue_number,
-                                labels: [Labels.needsSupportLog]
-                            });
+                            const reason = needsReferences ? Reasons.norefs : Reasons.nolog;
+                            yield octokit.issues.createComment({ owner, repo, issue_number, body: reason + complaint });
+                            yield octokit.issues.addLabels({ owner, repo, issue_number, labels: [Labels.needsSupportLog] });
                             needsSupportLog = true;
                         }
                         break;
                     case 'edited':
-                        if (needsSupportLog && hasSupportLogId) {
-                            yield octokit.issues.removeLabel({
-                                owner,
-                                repo,
-                                issue_number,
-                                name: Labels.needsSupportLog
-                            });
+                        if (needsSupportLog && hasSupportLogId && !(needsReferences && !hasReferences)) {
+                            yield octokit.issues.removeLabel({ owner, repo, issue_number, name: Labels.needsSupportLog });
                             needsSupportLog = false;
                         }
                         else if (!prompted) {
-                            yield octokit.issues.update({
-                                owner,
-                                repo,
-                                issue_number,
-                                body: `${event.issue.body}\n\n${prompt}`
-                            });
+                            yield octokit.issues.update({ owner, repo, issue_number, body: `${event.issue.body}\n\n${prompt}` });
                         }
                         break;
                     case 'closed':
                         if (!isCollaborator && !isQuestion) {
-                            yield octokit.issues.update({
-                                owner,
-                                repo,
-                                issue_number,
-                                state: 'open'
-                            });
-                            yield octokit.issues.createComment({
-                                owner,
-                                repo,
-                                issue_number,
-                                body: `@${owner} prefers to keep bugreports/enhancements open until the change is merged into a new release.`
-                            });
+                            yield octokit.issues.update({ owner, repo, issue_number, state: 'open' });
+                            yield octokit.issues.createComment({ owner, repo, issue_number, body: noclose });
                         }
                         else if (awaiting || needsSupportLog) {
                             yield octokit.issues.setLabels({
@@ -192,39 +171,19 @@ function run() {
                 const event = github.context.payload;
                 if (event.action === 'created') {
                     if (isCollaborator) {
-                        yield octokit.issues.addLabels({
-                            owner,
-                            repo,
-                            issue_number: event.issue.number,
-                            labels: [Labels.awaiting]
-                        });
+                        yield octokit.issues.addLabels({ owner, repo, issue_number: event.issue.number, labels: [Labels.awaiting] });
                     }
                     else if (awaiting) {
-                        yield octokit.issues.removeLabel({
-                            owner,
-                            repo,
-                            issue_number: event.issue.number,
-                            name: Labels.awaiting
-                        });
+                        yield octokit.issues.removeLabel({ owner, repo, issue_number: event.issue.number, name: Labels.awaiting });
                     }
                 }
                 if (!isCollaborator && needsSupportLog) {
-                    if (hasSupportLogId) {
-                        yield octokit.issues.removeLabel({
-                            owner,
-                            repo,
-                            issue_number: event.issue.number,
-                            name: Labels.needsSupportLog
-                        });
+                    if (hasSupportLogId && !(needsReferences && !hasReferences)) {
+                        yield octokit.issues.removeLabel({ owner, repo, issue_number: event.issue.number, name: Labels.needsSupportLog });
                         needsSupportLog = false;
                     }
                     else if (!prompted) {
-                        yield octokit.issues.updateComment({
-                            owner,
-                            repo,
-                            comment_id: event.comment.id,
-                            body: event.comment.body + '\n\n' + prompt
-                        });
+                        yield octokit.issues.updateComment({ owner, repo, comment_id: event.comment.id, body: event.comment.body + '\n\n' + prompt });
                     }
                 }
             }
