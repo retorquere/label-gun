@@ -170,7 +170,7 @@ function run() {
             else if (github.context.eventName === 'issue_comment') {
                 const event = github.context.payload;
                 if (event.action === 'created') {
-                    if (isCollaborator) {
+                    if (isCollaborator && event.issue.state === 'open') {
                         yield octokit.issues.addLabels({ owner, repo, issue_number: event.issue.number, labels: [Labels.awaiting] });
                     }
                     else if (awaiting) {

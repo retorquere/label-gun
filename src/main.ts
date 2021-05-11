@@ -157,7 +157,7 @@ async function run(): Promise<void> {
       const event = github.context.payload as IssueCommentEvent
 
       if (event.action === 'created') {
-        if (isCollaborator) {
+        if (isCollaborator && event.issue.state === 'open') {
           await octokit.issues.addLabels({ owner, repo, issue_number: event.issue.number, labels: [Labels.awaiting] })
         }
         else if (awaiting) {
