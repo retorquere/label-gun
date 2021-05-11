@@ -9,6 +9,7 @@
     "format-check": "prettier --check **/*.ts",
     "lint": "echo eslint src/**/*.ts",
     "package": "ncc build --source-map --license licenses.txt",
+    "postversion": "git push --follow-tags",
     "test": "echo jest",
     "start": "npm run build && npm run lint && npm run package && npm test"
   },
