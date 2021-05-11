@@ -93,7 +93,7 @@ function run() {
             const owner = ((_a = github.context.payload.repository) === null || _a === void 0 ? void 0 : _a.owner.login) || '';
             const repo = ((_b = github.context.payload.repository) === null || _b === void 0 ? void 0 : _b.name) || '';
             const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
-            const noclose = `Thanks for the feedback; there's no way you could have known, but @${owner} prefers to keep bugreports/enhancements open as a remninder to merge the change into a new release.`;
+            const noclose = `Thanks for the feedback; there's no way you could have known, but @${owner} prefers to keep bugreports/enhancements open as a reminder to merge the change into a new release.`;
             let isCollaborator = false;
             try {
                 yield octokit.repos.checkCollaborator({ owner, repo, username });

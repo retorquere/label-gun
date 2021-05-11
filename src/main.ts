@@ -70,7 +70,7 @@ async function run(): Promise<void> {
     const repo = github.context.payload.repository?.name || ''
     const username = github.context.payload.sender?.login || ''
 
-    const noclose = `Thanks for the feedback; there's no way you could have known, but @${owner} prefers to keep bugreports/enhancements open as a remninder to merge the change into a new release.`
+    const noclose = `Thanks for the feedback; there's no way you could have known, but @${owner} prefers to keep bugreports/enhancements open as a reminder to merge the change into a new release.`
 
     let isCollaborator = false
     try {
