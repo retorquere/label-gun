@@ -126,6 +126,17 @@ function run() {
             const hasSupportLogId = (_d = body.match(/[A-Z0-9]{8}(-refs)?-(apse|euc)/)) === null || _d === void 0 ? void 0 : _d[0];
             const hasReferences = body.match(/[A-Z0-9]{8}-refs-(apse|euc)/);
             const prompted = body.includes(prompt);
+            console.log({
+                event,
+                labels,
+                body,
+                isQuestion,
+                needsSupportLog,
+                awaiting,
+                hasSupportLogId,
+                hasReferences,
+                prompted,
+            });
             if (github.context.eventName === 'issues') {
                 const event = github.context.payload;
                 const issue_number = event.issue.number;
