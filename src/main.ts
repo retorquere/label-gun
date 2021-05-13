@@ -105,6 +105,17 @@ async function run(): Promise<void> {
     const hasSupportLogId = body.match(/[A-Z0-9]{8}(-refs)?-(apse|euc)/)?.[0]
     const hasReferences = body.match(/[A-Z0-9]{8}-refs-(apse|euc)/)
     const prompted = body.includes(prompt)
+    console.log({
+      event,
+      labels,
+      body,
+      isQuestion,
+      needsSupportLog,
+      awaiting,
+      hasSupportLogId,
+      hasReferences,
+      prompted,
+    })
 
     if (github.context.eventName === 'issues') {
       const event = github.context.payload as IssuesEvent
