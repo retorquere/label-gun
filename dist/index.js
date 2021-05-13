@@ -127,7 +127,7 @@ function run() {
             const hasReferences = body.match(/[A-Z0-9]{8}-refs-(apse|euc)/);
             const prompted = body.includes(prompt);
             console.log({
-                event,
+                event: github.context.payload,
                 labels,
                 body,
                 isQuestion,
