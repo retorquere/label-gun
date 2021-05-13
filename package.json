@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
+  "name": "label-gun",
   "version": "1.0.5",
   "private": true,
-  "description": "TypeScript template action",
+  "description": "automatic issue labeler",
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc",
