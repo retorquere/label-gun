@@ -125,7 +125,7 @@ async function run(): Promise<void> {
         case 'opened':
           if (!isQuestion && !hasSupportLogId && !isCollaborator) {
             const reason = needsReferences ? Reasons.norefs : Reasons.nolog
-            await octokit.issues.createComment({ owner, repo, issue_number, body: reason + complaint })
+            await octokit.issues.createComment({ owner, repo, issue_number, body: reason + complaint.trim() })
             await octokit.issues.addLabels({ owner, repo, issue_number, labels: [Labels.needsSupportLog] })
             needsSupportLog = true
           }

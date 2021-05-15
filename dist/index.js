@@ -144,7 +144,7 @@ function run() {
                     case 'opened':
                         if (!isQuestion && !hasSupportLogId && !isCollaborator) {
                             const reason = needsReferences ? Reasons.norefs : Reasons.nolog;
-                            yield octokit.issues.createComment({ owner, repo, issue_number, body: reason + complaint });
+                            yield octokit.issues.createComment({ owner, repo, issue_number, body: reason + complaint.trim() });
                             yield octokit.issues.addLabels({ owner, repo, issue_number, labels: [Labels.needsSupportLog] });
                             needsSupportLog = true;
                         }
