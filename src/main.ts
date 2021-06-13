@@ -74,7 +74,7 @@ async function run(): Promise<void> {
 
     let isCollaborator = false
     try {
-      await octokit.repos.checkCollaborator({ owner, repo, username })
+      await octokit.rest.repos.checkCollaborator({ owner, repo, username })
       isCollaborator = true
     } catch (err) {
       isCollaborator = false
@@ -125,40 +125,33 @@ async function run(): Promise<void> {
         case 'opened':
           if (!isQuestion && !hasSupportLogId && !isCollaborator) {
             const reason = needsReferences ? Reasons.norefs : Reasons.nolog
-            await octokit.issues.createComment({ owner, repo, issue_number, body: reason + complaint.trim() })
-            await octokit.issues.addLabels({ owner, repo, issue_number, labels: [Labels.needsSupportLog] })
+            await octokit.rest.issues.createComment({ owner, repo, issue_number, body: reason + complaint.trim() })
+            await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [Labels.needsSupportLog] })
             needsSupportLog = true
           }
           break
 
         case 'edited':
           if (needsSupportLog && hasSupportLogId && !(needsReferences && !hasReferences)) {
-            await octokit.issues.removeLabel({ owner, repo, issue_number, name: Labels.needsSupportLog })
+            await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name: Labels.needsSupportLog })
             needsSupportLog = false
           }
           else if (!prompted) {
-            await octokit.issues.update({ owner, repo, issue_number, body: `${event.issue.body}\n\n${prompt}` })
+            await octokit.rest.issues.update({ owner, repo, issue_number, body: `${event.issue.body}\n\n${prompt}` })
           }
           break
 
         case 'closed':
           if (!isCollaborator && !isQuestion) {
-            await octokit.issues.update({ owner, repo, issue_number, state: 'open' })
-            await octokit.issues.createComment({ owner, repo, issue_number, body: noclose })
+            await octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' })
+            await octokit.rest.issues.createComment({ owner, repo, issue_number, body: noclose })
           }
           else if (awaiting || needsSupportLog) {
-            await octokit.issues.setLabels({
-              owner,
-              repo,
-              issue_number,
-              labels: labels
-                .filter(
-                  (label: Label) =>
-                    label.name !== Labels.awaiting &&
-                    label.name !== Labels.needsSupportLog
-                )
-                .map((label: Label) => label.name)
-            })
+            for (const name of [Labels.awaiting, Labels.needsSupportLog]) {
+              if (labels.find(label => label.name === name)) {
+                await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name })
+              }
+            }
             needsSupportLog = false
           }
           break
@@ -169,20 +162,20 @@ async function run(): Promise<void> {
 
       if (event.action === 'created') {
         if (isCollaborator && event.issue.state === 'open') {
-          await octokit.issues.addLabels({ owner, repo, issue_number: event.issue.number, labels: [Labels.awaiting] })
+          await octokit.rest.issues.addLabels({ owner, repo, issue_number: event.issue.number, labels: [Labels.awaiting] })
         }
         else if (awaiting) {
-          await octokit.issues.removeLabel({ owner, repo, issue_number: event.issue.number, name: Labels.awaiting })
+          await octokit.rest.issues.removeLabel({ owner, repo, issue_number: event.issue.number, name: Labels.awaiting })
         }
       }
 
       if (!isCollaborator && needsSupportLog) {
         if (hasSupportLogId && !(needsReferences && !hasReferences)) {
-          await octokit.issues.removeLabel({ owner, repo, issue_number: event.issue.number, name: Labels.needsSupportLog })
+          await octokit.rest.issues.removeLabel({ owner, repo, issue_number: event.issue.number, name: Labels.needsSupportLog })
           needsSupportLog = false
         }
         else if (!prompted) {
-          await octokit.issues.updateComment({ owner, repo, comment_id: event.comment.id, body: event.comment.body + '\n\n' + prompt })
+          await octokit.rest.issues.updateComment({ owner, repo, comment_id: event.comment.id, body: event.comment.body + '\n\n' + prompt })
         }
       }
     }
