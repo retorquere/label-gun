@@ -149,7 +149,12 @@ async function run(): Promise<void> {
           else if (awaiting || needsSupportLog) {
             for (const name of [Labels.awaiting, Labels.needsSupportLog]) {
               if (labels.find(label => label.name === name)) {
-                await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name })
+                try {
+                  await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name })
+                }
+                catch (err) {
+                  console.log('error removing label', name, err)
+                }
               }
             }
             needsSupportLog = false
