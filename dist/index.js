@@ -55,7 +55,8 @@ const config = {
                     case 'undefined':
                         break;
                     case 'string':
-                        input[key] = value;
+                        if (value)
+                            input[key] = value;
                         break;
                     default:
                         throw new Error(`Unexpected ${typeof value} ${JSON.stringify(value)} for log-id.${key}`);
@@ -74,9 +75,9 @@ const config = {
         }
     },
     labels: {
-        awaiting: core.getInput('label.awaiting') || 'awaiting-user-feedback',
-        active: core.getInput('labeled.active'),
-        question: core.getInput('label.question'),
+        awaiting: core.getInput('label.awaiting'),
+        active: core.getInput('labele.active') || '',
+        exempt: core.getInput('label.exempt') || '',
     },
     noclose: core.getInput('noclose'),
 };
@@ -120,6 +121,8 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         if (!event.$)
             return;
+        if (config.labels.active && !labels.includes(config.labels.active))
+            return;
         try {
             yield octokit.rest.repos.checkCollaborator({ owner, repo, username });
             isCollaborator = true;
@@ -136,7 +139,7 @@ function run() {
                 yield logNeeded();
                 break;
             case 'closed':
-                if (!config.noclose || isCollaborator || labels.includes(config.labels.question)) {
+                if (!config.noclose || isCollaborator || labels.includes(config.labels.exempt)) {
                     yield awaiting(false);
                     return;
                 }
@@ -180,7 +183,7 @@ function removeLabel(label) {
 }
 function logNeeded() {
     return __awaiter(this, void 0, void 0, function* () {
-        if (!config.logID || isCollaborator || labels.includes(config.labels.question))
+        if (!config.logID || isCollaborator || labels.includes(config.labels.exempt))
             return false;
         if (body.match(config.logID.regex)) {
             yield removeLabel(config.logID.needed);
