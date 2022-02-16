@@ -187,8 +187,8 @@ async function run(): Promise<void> {
 
     core.setOutput('needsSupportLog', needsSupportLog ? 'true' : 'false')
   } catch (err) {
-    core.error(`error: ${err}\n${err.stack}`)
-    core.setFailed(err.message)
+    core.error(`error: ${err}\n${(err as Error).stack}`)
+    core.setFailed((err as Error).message)
   }
 }
 
