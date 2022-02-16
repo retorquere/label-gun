@@ -48,9 +48,9 @@ const config = {
   },
 
   labels: {
-    awaiting: core.getInput('label.awaiting') || 'awaiting-user-feedback',
-    active: core.getInput('labeled.active'),
-    question: core.getInput('label.question'),
+    awaiting: core.getInput('label.awaiting'),
+    active: core.getInput('labele.active') || '',
+    exempt: core.getInput('label.exempt') || '',
   },
 
   noclose: core.getInput('noclose'),
@@ -94,6 +94,7 @@ let body = ''
 
 async function run(): Promise<void> {
   if (!event.$) return
+  if (config.labels.active && !labels.includes(config.labels.active)) return
 
   try {
     await octokit.rest.repos.checkCollaborator({ owner, repo, username })
@@ -113,7 +114,7 @@ async function run(): Promise<void> {
       break
 
     case 'closed':
-      if (!config.noclose || isCollaborator || labels.includes(config.labels.question)) {
+      if (!config.noclose || isCollaborator || labels.includes(config.labels.exempt)) {
         await awaiting(false)
         return
       }
@@ -154,7 +155,7 @@ async function removeLabel(label: string) {
 }
 
 async function logNeeded(): Promise<boolean> {
-  if (!config.logID || isCollaborator || labels.includes(config.labels.question)) return false
+  if (!config.logID || isCollaborator || labels.includes(config.labels.exempt)) return false
   if (body.match(config.logID.regex)) {
     await removeLabel(config.logID.needed)
     return false
