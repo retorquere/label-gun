@@ -57,7 +57,7 @@ Once done, you will see a support log ID in red. Please post that support log id
 Thank you!
 `
 
-const prompt = 'Support log ID:'
+const prompt = 'Support log ID (with `-apse` or `-euc`):'
 
 function state() {}
 
