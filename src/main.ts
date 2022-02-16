@@ -134,6 +134,7 @@ async function run(): Promise<void> {
 }
 
 async function awaiting(on: boolean) {
+  core.notice(`awaiting: ${!!on}`)
   if (on) {
     await addLabel(config.labels.awaiting)
   }
@@ -143,13 +144,17 @@ async function awaiting(on: boolean) {
 }
 
 async function addLabel(label: string) {
+  core.notice(`ensuring label: ${label}`)
   if (!labels.includes(label)) {
+    core.notice(`adding label: ${label}`)
     await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [label] })
   }
 }
 
 async function removeLabel(label: string) {
+  core.notice(`ensuring !label: ${label}`)
   if (labels.includes(label)) {
+    core.notice(`removing label: ${label}`)
     await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name: label })
   }
 }
