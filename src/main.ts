@@ -28,7 +28,7 @@ const config = {
           case 'undefined':
             break
           case 'string':
-            input[key] = value
+            if (value) input[key] = value
             break
           default:
             throw new Error(`Unexpected ${typeof value} ${JSON.stringify(value)} for log-id.${key}`)
