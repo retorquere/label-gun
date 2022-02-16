@@ -126,9 +126,11 @@ async function run(): Promise<void> {
 
   switch (event.issue_comment?.action) {
     case 'created':
-    case 'edited':
       await awaiting(isCollaborator)
       if (await logNeeded()) await promptForLog()
+      break
+    case 'edited':
+      await logNeeded()
       break
   }
 }

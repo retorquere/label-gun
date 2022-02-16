@@ -149,16 +149,19 @@ function run() {
         }
         switch ((_d = event.issue_comment) === null || _d === void 0 ? void 0 : _d.action) {
             case 'created':
-            case 'edited':
                 yield awaiting(isCollaborator);
                 if (yield logNeeded())
                     yield promptForLog();
+                break;
+            case 'edited':
+                yield logNeeded();
                 break;
         }
     });
 }
 function awaiting(on) {
     return __awaiter(this, void 0, void 0, function* () {
+        core.notice(`awaiting: ${!!on}`);
         if (on) {
             yield addLabel(config.labels.awaiting);
         }
@@ -169,14 +172,18 @@ function awaiting(on) {
 }
 function addLabel(label) {
     return __awaiter(this, void 0, void 0, function* () {
+        core.notice(`ensuring label: ${label}`);
         if (!labels.includes(label)) {
+            core.notice(`adding label: ${label}`);
             yield octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [label] });
         }
     });
 }
 function removeLabel(label) {
     return __awaiter(this, void 0, void 0, function* () {
+        core.notice(`ensuring !label: ${label}`);
         if (labels.includes(label)) {
+            core.notice(`removing label: ${label}`);
             yield octokit.rest.issues.removeLabel({ owner, repo, issue_number, name: label });
         }
     });
