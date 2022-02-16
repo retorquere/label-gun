@@ -13,19 +13,19 @@ inputs:
     required: false
     description: 'ignore issues with this tag'
     default: ''
-  login-id.label:
+  log-id.label:
     required: false
     description: 'tag issues with missing log ID with this label'
     default: ''
-  login-id.regex:
+  log-id.regex:
     required: false
     description: 'search for this pattern to detect log ID'
     default: ''
-  login-id.message:
+  log-id.message:
     required: false
     description: 'post this comment when log ID is missing'
     default: ''
-  login-id.prompt:
+  log-id.prompt:
     required: false
     description: 'follow-up prompt when log ID remains missing'
     default: ''
@@ -33,7 +33,7 @@ inputs:
     required: true
     description: 'follow-up prompt when log ID remains missing'
     default: 'awaiting-user-feedback'
-  noclose:
+  no-close:
     required: false
     description: 'comment to post when re-opening message closed by non-collaborator'
     default: ''

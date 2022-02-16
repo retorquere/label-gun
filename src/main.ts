@@ -53,7 +53,7 @@ const config = {
     exempt: core.getInput('label.exempt') || '',
   },
 
-  noclose: core.getInput('noclose'),
+  noclose: core.getInput('no-close'),
 }
 if (!config.logID.needed) (config.logID as any) = null
 
