@@ -116,6 +116,7 @@ async function run(): Promise<void> {
     case 'closed':
       if (!config.noclose || isCollaborator || labels.includes(config.labels.exempt)) {
         await awaiting(false)
+        if (config.logID)  await removeLabel(config.logID.needed)
         return
       }
 
@@ -127,10 +128,10 @@ async function run(): Promise<void> {
   switch (event.issue_comment?.action) {
     case 'created':
       await awaiting(isCollaborator)
-      if (await logNeeded(false)) await promptForLog()
+      await promptForLog()
       break
     case 'edited':
-      await logNeeded(false)
+      await promptForLog()
       break
   }
 }
@@ -161,21 +162,27 @@ async function removeLabel(label: string) {
   }
 }
 
-async function logNeeded(add_label=true): Promise<boolean> {
+async function logNeeded(): Promise<boolean> {
   if (!config.logID || isCollaborator || labels.includes(config.labels.exempt)) return false
   if (body.match(config.logID.regex)) {
     await removeLabel(config.logID.needed)
     return false
   }
   else {
-    if (add_label) await addLabel(config.logID.needed)
+    await addLabel(config.logID.needed)
     return true
   }
 }
 
 async function promptForLog() {
-  if (!event.issue_comment || !(config.logID?.prompt) || body.includes(config.logID.prompt)) return
-  await octokit.rest.issues.updateComment({ owner, repo, comment_id: event.issue_comment.comment.id, body: body + '\n\n' + config.logID.prompt })
+  if (!labels.includes(config.logID.needed)) return
+
+  if (body.match(config.logID.regex)) {
+    await removeLabel(config.logID.needed)
+  }
+  else if (event.issue_comment && config.logID?.prompt && !body.includes(config.logID.prompt)) {
+    await octokit.rest.issues.updateComment({ owner, repo, comment_id: event.issue_comment.comment.id, body: body + '\n\n' + config.logID.prompt })
+  }
 }
 
 run()

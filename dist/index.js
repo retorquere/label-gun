@@ -141,6 +141,8 @@ function run() {
             case 'closed':
                 if (!config.noclose || isCollaborator || labels.includes(config.labels.exempt)) {
                     yield awaiting(false);
+                    if (config.logID)
+                        yield removeLabel(config.logID.needed);
                     return;
                 }
                 yield octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.noclose });
@@ -150,11 +152,10 @@ function run() {
         switch ((_d = event.issue_comment) === null || _d === void 0 ? void 0 : _d.action) {
             case 'created':
                 yield awaiting(isCollaborator);
-                if (yield logNeeded(false))
-                    yield promptForLog();
+                yield promptForLog();
                 break;
             case 'edited':
-                yield logNeeded(false);
+                yield promptForLog();
                 break;
         }
     });
@@ -188,7 +189,7 @@ function removeLabel(label) {
         }
     });
 }
-function logNeeded(add_label = true) {
+function logNeeded() {
     return __awaiter(this, void 0, void 0, function* () {
         if (!config.logID || isCollaborator || labels.includes(config.labels.exempt))
             return false;
@@ -197,8 +198,7 @@ function logNeeded(add_label = true) {
             return false;
         }
         else {
-            if (add_label)
-                yield addLabel(config.logID.needed);
+            yield addLabel(config.logID.needed);
             return true;
         }
     });
@@ -206,9 +206,14 @@ function logNeeded(add_label = true) {
 function promptForLog() {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
-        if (!event.issue_comment || !((_a = config.logID) === null || _a === void 0 ? void 0 : _a.prompt) || body.includes(config.logID.prompt))
+        if (!labels.includes(config.logID.needed))
             return;
-        yield octokit.rest.issues.updateComment({ owner, repo, comment_id: event.issue_comment.comment.id, body: body + '\n\n' + config.logID.prompt });
+        if (body.match(config.logID.regex)) {
+            yield removeLabel(config.logID.needed);
+        }
+        else if (event.issue_comment && ((_a = config.logID) === null || _a === void 0 ? void 0 : _a.prompt) && !body.includes(config.logID.prompt)) {
+            yield octokit.rest.issues.updateComment({ owner, repo, comment_id: event.issue_comment.comment.id, body: body + '\n\n' + config.logID.prompt });
+        }
     });
 }
 run();
