@@ -127,10 +127,10 @@ async function run(): Promise<void> {
   switch (event.issue_comment?.action) {
     case 'created':
       await awaiting(isCollaborator)
-      if (await logNeeded()) await promptForLog()
+      if (await logNeeded(false)) await promptForLog()
       break
     case 'edited':
-      await logNeeded()
+      await logNeeded(false)
       break
   }
 }
@@ -161,14 +161,14 @@ async function removeLabel(label: string) {
   }
 }
 
-async function logNeeded(): Promise<boolean> {
+async function logNeeded(add_label=true): Promise<boolean> {
   if (!config.logID || isCollaborator || labels.includes(config.labels.exempt)) return false
   if (body.match(config.logID.regex)) {
     await removeLabel(config.logID.needed)
     return false
   }
   else {
-    await addLabel(config.logID.needed)
+    if (add_label) await addLabel(config.logID.needed)
     return true
   }
 }

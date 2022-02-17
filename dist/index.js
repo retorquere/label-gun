@@ -150,11 +150,11 @@ function run() {
         switch ((_d = event.issue_comment) === null || _d === void 0 ? void 0 : _d.action) {
             case 'created':
                 yield awaiting(isCollaborator);
-                if (yield logNeeded())
+                if (yield logNeeded(false))
                     yield promptForLog();
                 break;
             case 'edited':
-                yield logNeeded();
+                yield logNeeded(false);
                 break;
         }
     });
@@ -188,7 +188,7 @@ function removeLabel(label) {
         }
     });
 }
-function logNeeded() {
+function logNeeded(add_label = true) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!config.logID || isCollaborator || labels.includes(config.labels.exempt))
             return false;
@@ -197,7 +197,8 @@ function logNeeded() {
             return false;
         }
         else {
-            yield addLabel(config.logID.needed);
+            if (add_label)
+                yield addLabel(config.logID.needed);
             return true;
         }
     });
