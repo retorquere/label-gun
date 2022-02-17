@@ -132,11 +132,14 @@ function run() {
         body = ((_a = event.issues) === null || _a === void 0 ? void 0 : _a.issue.body) || ((_b = event.issue_comment) === null || _b === void 0 ? void 0 : _b.comment.body) || '';
         switch ((_c = event.issues) === null || _c === void 0 ? void 0 : _c.action) {
             case 'opened':
-                if (yield logNeeded())
+                if (!isCollaborator && config.logID && !labels.includes(config.labels.exempt) && !body.match(config.logID.regex)) {
+                    yield addLabel(config.logID.needed);
                     yield octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.logID.message });
+                }
                 break;
             case 'edited':
-                yield logNeeded();
+                if (config.logID && body.match(config.logID.regex))
+                    yield removeLabel(config.logID.needed);
                 break;
             case 'closed':
                 if (!config.noclose || isCollaborator || labels.includes(config.labels.exempt)) {
@@ -186,20 +189,6 @@ function removeLabel(label) {
         if (labels.includes(label)) {
             core.notice(`removing label: ${label}`);
             yield octokit.rest.issues.removeLabel({ owner, repo, issue_number, name: label });
-        }
-    });
-}
-function logNeeded() {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (!config.logID || isCollaborator || labels.includes(config.labels.exempt))
-            return false;
-        if (body.match(config.logID.regex)) {
-            yield removeLabel(config.logID.needed);
-            return false;
-        }
-        else {
-            yield addLabel(config.logID.needed);
-            return true;
         }
     });
 }
