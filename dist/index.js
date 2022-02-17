@@ -165,7 +165,6 @@ function run() {
 }
 function awaiting(on) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.notice(`awaiting: ${!!on}`);
         if (on) {
             yield addLabel(config.labels.awaiting);
         }
@@ -176,18 +175,14 @@ function awaiting(on) {
 }
 function addLabel(label) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.notice(`ensuring label: ${label}`);
         if (!labels.includes(label)) {
-            core.notice(`adding label: ${label}`);
             yield octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [label] });
         }
     });
 }
 function removeLabel(label) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.notice(`ensuring !label: ${label}`);
         if (labels.includes(label)) {
-            core.notice(`removing label: ${label}`);
             yield octokit.rest.issues.removeLabel({ owner, repo, issue_number, name: label });
         }
     });
