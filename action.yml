@@ -33,7 +33,7 @@ inputs:
     required: true
     description: 'follow-up prompt when log ID remains missing'
     default: 'awaiting-user-feedback'
-  no-close:
+  no-close.message:
     required: false
     description: 'comment to post when re-opening message closed by non-collaborator'
     default: ''

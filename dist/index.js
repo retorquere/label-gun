@@ -79,7 +79,7 @@ const config = {
         active: core.getInput('labele.active') || '',
         exempt: core.getInput('label.exempt') || '',
     },
-    noclose: core.getInput('no-close'),
+    noclose: core.getInput('no-close.message'),
 };
 if (!config.logID.needed)
     config.logID = null;
