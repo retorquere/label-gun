@@ -37,6 +37,10 @@ inputs:
     required: false
     description: 'comment to post when re-opening message closed by non-collaborator'
     default: ''
+  reopen.label:
+    required: false
+    description: 're-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators'
+    default: ''
 runs:
   using: 'node12'
   main: 'dist/index.js'

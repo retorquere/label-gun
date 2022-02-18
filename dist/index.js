@@ -78,6 +78,7 @@ const config = {
         awaiting: core.getInput('label.awaiting'),
         active: core.getInput('labele.active') || '',
         exempt: core.getInput('label.exempt') || '',
+        reopen: core.getInput('reopen.label') || '',
     },
     noclose: core.getInput('no-close.message'),
 };
@@ -116,6 +117,8 @@ switch (github.context.eventName) {
 const labels = (((_e = event.$) === null || _e === void 0 ? void 0 : _e.issue.labels) || []).map((label) => label.name);
 let isCollaborator = false;
 let body = '';
+if (config.labels.reopen && labels.includes(config.labels.reopen))
+    config.noclose = '';
 function run() {
     var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function* () {
@@ -154,6 +157,10 @@ function run() {
         }
         switch ((_d = event.issue_comment) === null || _d === void 0 ? void 0 : _d.action) {
             case 'created':
+                if (!isCollaborator && event.issue_comment.issue.state === 'closed' && config.labels.reopen) {
+                    yield octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' });
+                    yield addLabel(config.labels.reopen);
+                }
                 yield awaiting(isCollaborator);
                 yield promptForLog();
                 break;
