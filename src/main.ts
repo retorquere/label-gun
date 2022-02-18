@@ -90,6 +90,7 @@ switch (github.context.eventName) {
     break
 }
 const labels = (event.$?.issue.labels || []).map((label: Label) => label.name)
+const open: boolean = event.$?.issue.state === 'open'
 
 let isCollaborator = false
 let body = ''
@@ -134,15 +135,17 @@ async function run(): Promise<void> {
 
   switch (event.issue_comment?.action) {
     case 'created':
-      if (!isCollaborator && event.issue_comment.issue.state === 'closed' && config.labels.reopen) {
+      if (!isCollaborator && !open && config.labels.reopen) {
         await octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' })
         await addLabel(config.labels.reopen)
       }
-      await awaiting(isCollaborator)
-      await promptForLog()
+      if (open) {
+        await awaiting(isCollaborator)
+        await promptForLog()
+      }
       break
     case 'edited':
-      await promptForLog()
+      if (open) await promptForLog()
       break
   }
 }

@@ -34,7 +34,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var _a, _b, _c, _d, _e;
+var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const stringify = __nccwpck_require__(7676);
 const core = __importStar(__nccwpck_require__(2186));
@@ -115,6 +115,7 @@ switch (github.context.eventName) {
         break;
 }
 const labels = (((_e = event.$) === null || _e === void 0 ? void 0 : _e.issue.labels) || []).map((label) => label.name);
+const open = ((_f = event.$) === null || _f === void 0 ? void 0 : _f.issue.state) === 'open';
 let isCollaborator = false;
 let body = '';
 if (config.labels.reopen && labels.includes(config.labels.reopen))
@@ -157,15 +158,18 @@ function run() {
         }
         switch ((_d = event.issue_comment) === null || _d === void 0 ? void 0 : _d.action) {
             case 'created':
-                if (!isCollaborator && event.issue_comment.issue.state === 'closed' && config.labels.reopen) {
+                if (!isCollaborator && !open && config.labels.reopen) {
                     yield octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' });
                     yield addLabel(config.labels.reopen);
                 }
-                yield awaiting(isCollaborator);
-                yield promptForLog();
+                if (open) {
+                    yield awaiting(isCollaborator);
+                    yield promptForLog();
+                }
                 break;
             case 'edited':
-                yield promptForLog();
+                if (open)
+                    yield promptForLog();
                 break;
         }
     });
