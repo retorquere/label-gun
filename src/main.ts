@@ -141,11 +141,11 @@ async function run(): Promise<void> {
       }
       if (open) {
         await awaiting(isCollaborator)
-        await promptForLog()
+        if (!isCollaborator) await promptForLog()
       }
       break
     case 'edited':
-      if (open) await promptForLog()
+      if (open && !isCollaborator) await promptForLog()
       break
   }
 }
