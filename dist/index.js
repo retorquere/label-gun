@@ -164,11 +164,12 @@ function run() {
                 }
                 if (open) {
                     yield awaiting(isCollaborator);
-                    yield promptForLog();
+                    if (!isCollaborator)
+                        yield promptForLog();
                 }
                 break;
             case 'edited':
-                if (open)
+                if (open && !isCollaborator)
                     yield promptForLog();
                 break;
         }
