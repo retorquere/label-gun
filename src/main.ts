@@ -113,7 +113,7 @@ async function run(): Promise<void> {
     case 'opened':
       if (!isCollaborator && config.logID && !labels.includes(config.labels.exempt) && !body.match(config.logID.regex)) {
         await addLabel(config.logID.needed)
-        await octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.logID.message })
+        await octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.logID.message.replace('{{username}}', username) })
       }
       break
 

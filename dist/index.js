@@ -138,7 +138,7 @@ function run() {
             case 'opened':
                 if (!isCollaborator && config.logID && !labels.includes(config.labels.exempt) && !body.match(config.logID.regex)) {
                     yield addLabel(config.logID.needed);
-                    yield octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.logID.message });
+                    yield octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.logID.message.replace('{{username}}', username) });
                 }
                 break;
             case 'edited':
