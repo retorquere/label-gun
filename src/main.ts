@@ -141,11 +141,11 @@ async function run(): Promise<void> {
       }
       if (open) {
         await awaiting(isCollaborator)
-        if (!isCollaborator) await promptForLog()
+        if (!isCollaborator) await checkForLog()
       }
       break
     case 'edited':
-      if (open && !isCollaborator) await promptForLog()
+      if (open && !isCollaborator) await checkForLog()
       break
   }
 }
@@ -171,14 +171,9 @@ async function removeLabel(label: string) {
   }
 }
 
-async function promptForLog() {
-  if (!labels.includes(config.logID.needed)) return
-
-  if (body.match(config.logID.regex)) {
+async function checkForLog() {
+  if (labels.includes(config.logID.needed) && body.match(config.logID.regex)) {
     await removeLabel(config.logID.needed)
-  }
-  else if (event.issue_comment && config.logID?.prompt && !body.includes(config.logID.prompt)) {
-    await octokit.rest.issues.updateComment({ owner, repo, comment_id: event.issue_comment.comment.id, body: body + '\n\n' + config.logID.prompt })
   }
 }
 
