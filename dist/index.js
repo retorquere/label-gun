@@ -165,12 +165,12 @@ function run() {
                 if (open) {
                     yield awaiting(isCollaborator);
                     if (!isCollaborator)
-                        yield promptForLog();
+                        yield checkForLog();
                 }
                 break;
             case 'edited':
                 if (open && !isCollaborator)
-                    yield promptForLog();
+                    yield checkForLog();
                 break;
         }
     });
@@ -199,16 +199,10 @@ function removeLabel(label) {
         }
     });
 }
-function promptForLog() {
-    var _a;
+function checkForLog() {
     return __awaiter(this, void 0, void 0, function* () {
-        if (!labels.includes(config.logID.needed))
-            return;
-        if (body.match(config.logID.regex)) {
+        if (labels.includes(config.logID.needed) && body.match(config.logID.regex)) {
             yield removeLabel(config.logID.needed);
-        }
-        else if (event.issue_comment && ((_a = config.logID) === null || _a === void 0 ? void 0 : _a.prompt) && !body.includes(config.logID.prompt)) {
-            yield octokit.rest.issues.updateComment({ owner, repo, comment_id: event.issue_comment.comment.id, body: body + '\n\n' + config.logID.prompt });
         }
     });
 }
