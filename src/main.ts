@@ -57,7 +57,7 @@ async function prepare(): Promise<Facts> {
 
   let body = ''
   if (github.context.eventName === 'issues') {
-    const { action, issue } = (github.context.payload as IssuesEvent)
+    const { action } = (github.context.payload as IssuesEvent)
     facts.issue = github.context.payload as unknown as Issue
     body = facts.issue.body
     facts.event = `issue-${action}` as 'issue-opened'
@@ -69,7 +69,7 @@ async function prepare(): Promise<Facts> {
     facts.event = `comment-${action}` as 'comment-created'
   }
 
-  facts.log_present = !!body.match(config.log)
+  facts.log_present = !!body?.match(config.log)
   issue_number = facts.issue.number
 
   return facts
@@ -147,6 +147,18 @@ rules.push(new Rule({
       await label(facts, config.label.reopened)
       await octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.message.no_close })
     }
+  },
+}))
+
+rules.push(new Rule({
+  name: 'clean up closed issue',
+  when: [
+    (facts: Facts) => facts.event === 'issue-closed',
+    (facts: Facts) => facts.collaborator || labeled(facts, config.label.exempt)
+  ],
+  then: async (facts: Facts) => {
+    if (labeled(facts, config.label.reopened)) await unlabel(facts, config.label.reopened)
+    if (labeled(facts, config.label.awaiting)) await unlabel(facts, config.label.awaiting)
   },
 }))
 
