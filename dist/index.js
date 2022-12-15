@@ -13120,6 +13120,8 @@ function prepare() {
             body = comment.body;
             facts.event = `comment-${action}`;
         }
+        console.log(facts.event);
+        console.log(github.context.payload);
         facts.log_present = !!(body === null || body === void 0 ? void 0 : body.match(config.log));
         issue_number = facts.issue.number;
         return facts;
