@@ -8,7 +8,7 @@
     "build": "npm run package",
     "format-check": "prettier --check **/*.ts",
     "lint": "echo eslint src/**/*.ts",
-    "package": "tsc --noEmit && ncc build --source-map --license licenses.txt",
+    "package": "tsc --noEmit && ncc build --source-map --license licenses.txt src/main.ts -o dist",
     "preversion": "npm start && git add -u",
     "postversion": "git push --follow-tags",
     "test": "echo jest",
