@@ -68,9 +68,6 @@ async function prepare(): Promise<Facts> {
     body = comment.body
     facts.event = `comment-${action}` as 'comment-created'
   }
-  console.log(facts.event)
-  console.log('payload', github.context.payload)
-  console.log('issue', facts.issue)
 
   facts.log_present = !!body?.match(config.log)
   issue_number = facts.issue.number
