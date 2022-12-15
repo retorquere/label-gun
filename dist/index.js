@@ -13109,9 +13109,9 @@ function prepare() {
         }
         let body = '';
         if (github.context.eventName === 'issues') {
-            const { action } = github.context.payload;
-            facts.issue = github.context.payload;
-            body = facts.issue.body;
+            const { action, issue } = github.context.payload;
+            facts.issue = issue;
+            body = issue.body;
             facts.event = `issue-${action}`;
         }
         else if (github.context.eventName === 'issue_comment') {

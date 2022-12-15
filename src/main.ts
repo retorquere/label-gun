@@ -57,9 +57,9 @@ async function prepare(): Promise<Facts> {
 
   let body = ''
   if (github.context.eventName === 'issues') {
-    const { action } = (github.context.payload as IssuesEvent)
-    facts.issue = github.context.payload as unknown as Issue
-    body = facts.issue.body
+    const { action, issue } = (github.context.payload as IssuesEvent)
+    facts.issue = issue
+    body = issue.body
     facts.event = `issue-${action}` as 'issue-opened'
   }
   else if (github.context.eventName === 'issue_comment') {
