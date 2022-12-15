@@ -55,11 +55,15 @@ class Facts {
 
     let body = ''
     if (github.context.eventName === 'issues') {
-      console.log(github.context.payload)
-      const { issue, action } = github.context.payload.issues
-      this.issue = issue
-      body = issue.body
-      this.event = `issue-${action}` as 'issue-opened'
+      try {
+        const { issue, action } = github.context.payload.issues
+        this.issue = issue
+        body = issue.body
+        this.event = `issue-${action}` as 'issue-opened'
+      }
+      catch (err) {
+        console.log(github.context.payload)
+      }
     }
     else if (github.context.eventName === 'issue_comment') {
       const { action, comment, issue } = github.context.payload.issue_comment
