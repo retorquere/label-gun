@@ -13158,10 +13158,12 @@ rules.push(new rools_1.Rule({
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
         yield label(facts, config.label.log_required);
-        yield octokit.rest.issues.createComment({
-            owner, repo, issue_number,
-            body: config.message.log_required.replace('{{username}}', username),
-        });
+        if (config.message.log_required) {
+            yield octokit.rest.issues.createComment({
+                owner, repo, issue_number,
+                body: config.message.log_required.replace('{{username}}', username),
+            });
+        }
     }),
 }));
 rules.push(new rools_1.Rule({
@@ -13179,7 +13181,8 @@ rules.push(new rools_1.Rule({
 rules.push(new rools_1.Rule({
     name: 'toggle awaiting',
     when: [
-        (facts) => ['issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
+        (facts) => ['comment-created'].includes(facts.event),
+        (facts) => labeled(facts, config.label.awaiting) !== facts.collaborator,
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
         yield (facts.collaborator ? label(facts, config.label.awaiting) : unlabel(facts, config.label.awaiting));
@@ -13189,9 +13192,9 @@ rules.push(new rools_1.Rule({
     name: 're-open user-closed issue',
     when: [
         (facts) => facts.event === 'issue-closed',
-        (facts) => !!(config.label.reopened && config.message.no_close),
         (facts) => !facts.collaborator,
         (facts) => !labeled(facts, config.label.exempt),
+        (facts) => !!(config.label.reopened && config.message.no_close),
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
         yield octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' });
@@ -13214,8 +13217,6 @@ rules.push(new rools_1.Rule({
             yield unlabel(facts, config.label.awaiting);
     }),
 }));
-for (const rule of rules) {
-}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const facts = yield prepare();

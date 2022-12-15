@@ -103,10 +103,12 @@ rules.push(new Rule({
   ],
   then: async (facts: Facts) => {
     await label(facts, config.label.log_required)
-    await octokit.rest.issues.createComment({
-      owner, repo, issue_number,
-      body: config.message.log_required.replace('{{username}}', username),
-    })
+    if (config.message.log_required) {
+      await octokit.rest.issues.createComment({
+        owner, repo, issue_number,
+        body: config.message.log_required.replace('{{username}}', username),
+      })
+    }
   },
 }))
 
@@ -126,7 +128,8 @@ rules.push(new Rule({
 rules.push(new Rule({
   name: 'toggle awaiting',
   when: [
-    (facts: Facts) => ['issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
+    (facts: Facts) => ['comment-created'].includes(facts.event),
+    (facts: Facts) => labeled(facts, config.label.awaiting) !== facts.collaborator,
   ],
   then: async (facts: Facts) => {
     await (facts.collaborator ? label(facts, config.label.awaiting) : unlabel(facts, config.label.awaiting))
@@ -137,9 +140,9 @@ rules.push(new Rule({
   name: 're-open user-closed issue',
   when: [
     (facts: Facts) => facts.event === 'issue-closed',
-    (facts: Facts) => !!(config.label.reopened && config.message.no_close),
     (facts: Facts) => !facts.collaborator,
     (facts: Facts) => !labeled(facts, config.label.exempt),
+    (facts: Facts) => !!(config.label.reopened && config.message.no_close),
   ],
   then: async (facts: Facts) => {
     await octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' })
@@ -161,9 +164,6 @@ rules.push(new Rule({
     if (labeled(facts, config.label.awaiting)) await unlabel(facts, config.label.awaiting)
   },
 }))
-
-for (const rule of rules) {
-}
 
 async function run(): Promise<void> {
   const facts = await prepare()
