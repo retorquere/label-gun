@@ -13,36 +13,32 @@ inputs:
     required: false
     description: 'ignore issues with this tag'
     default: ''
-  log-id.label:
+  label.log-required:
     required: false
     description: 'tag issues with missing log ID with this label'
-    default: ''
-  log-id.regex:
-    required: false
-    description: 'search for this pattern to detect log ID'
-    default: ''
-  log-id.message:
-    required: false
-    description: 'post this comment when log ID is missing'
-    default: ''
-  log-id.prompt:
-    required: false
-    description: 'follow-up prompt when log ID remains missing'
     default: ''
   label.awaiting:
     required: true
     description: 'follow-up prompt when log ID remains missing'
     default: 'awaiting-user-feedback'
-  no-close.message:
-    required: false
-    description: 'comment to post when re-opening message closed by non-collaborator'
-    default: ''
-  reopen.label:
+  label.reopened:
     required: false
     description: 're-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators'
     default: ''
+  log-id:
+    required: false
+    description: 'search for this pattern to detect log ID'
+    default: ''
+  message.log-required:
+    required: false
+    description: 'post this comment when log ID is missing'
+    default: ''
+  message.no-close:
+    required: false
+    description: 'comment to post when re-opening message closed by non-collaborator'
+    default: ''
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/index.js'
 branding:
   icon: tag
