@@ -13096,54 +13096,55 @@ class Facts {
         this.collaborator = false;
         this.log_present = false;
     }
-    prepare() {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                yield octokit.rest.repos.checkCollaborator({ owner, repo, username });
-                this.collaborator = true;
-            }
-            catch (err) {
-                this.collaborator = false;
-            }
-            let body = '';
-            if (github.context.eventName === 'issues') {
-                const { action, issue } = github.context.payload;
-                this.issue = github.context.payload;
-                body = this.issue.body;
-                this.event = `issue-${action}`;
-            }
-            else if (github.context.eventName === 'issue_comment') {
-                const { action, comment, issue } = github.context.payload;
-                this.issue = issue;
-                body = comment.body;
-                this.event = `comment-${action}`;
-            }
-            this.log_present = !!body.match(config.log);
-            issue_number = this.issue.number;
-            return this;
-        });
-    }
-    labeled(name, dflt = false) {
-        if (!name)
-            return dflt;
-        return !!this.issue.labels.find(label => label.name === name) || dflt;
-    }
-    label(name) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this.issue.labels.find(label => label.name === name))
-                return;
-            yield octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [name] });
-            this.issue.labels.push({ name });
-        });
-    }
-    unlabel(name) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let labels = this.issue.labels.length;
-            this.issue.labels = this.issue.labels.filter(label => label.name !== name);
-            if (labels !== this.issue.labels.length)
-                yield octokit.rest.issues.removeLabel({ owner, repo, issue_number, name });
-        });
-    }
+}
+function prepare() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const facts = new Facts;
+        try {
+            yield octokit.rest.repos.checkCollaborator({ owner, repo, username });
+            facts.collaborator = true;
+        }
+        catch (err) {
+            facts.collaborator = false;
+        }
+        let body = '';
+        if (github.context.eventName === 'issues') {
+            const { action, issue } = github.context.payload;
+            facts.issue = github.context.payload;
+            body = facts.issue.body;
+            facts.event = `issue-${action}`;
+        }
+        else if (github.context.eventName === 'issue_comment') {
+            const { action, comment, issue } = github.context.payload;
+            facts.issue = issue;
+            body = comment.body;
+            facts.event = `comment-${action}`;
+        }
+        facts.log_present = !!body.match(config.log);
+        issue_number = facts.issue.number;
+        return facts;
+    });
+}
+function labeled(facts, name, dflt = false) {
+    if (!name)
+        return dflt;
+    return !!facts.issue.labels.find(label => label.name === name) || dflt;
+}
+function label(facts, name) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (facts.issue.labels.find(label => label.name === name))
+            return;
+        yield octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [name] });
+        facts.issue.labels.push({ name });
+    });
+}
+function unlabel(facts, name) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let labels = facts.issue.labels.length;
+        facts.issue.labels = facts.issue.labels.filter(label => label.name !== name);
+        if (labels !== facts.issue.labels.length)
+            yield octokit.rest.issues.removeLabel({ owner, repo, issue_number, name });
+    });
 }
 const rules = [];
 rules.push(new rools_1.Rule({
@@ -13152,11 +13153,11 @@ rules.push(new rools_1.Rule({
         (facts) => !!config.log,
         (facts) => facts.event === 'issue-opened',
         (facts) => !facts.collaborator,
-        (facts) => !facts.labeled(config.label.exempt),
+        (facts) => !labeled(facts, config.label.exempt),
         (facts) => !facts.log_present,
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
-        yield facts.label(config.label.log_required);
+        yield label(facts, config.label.log_required);
         yield octokit.rest.issues.createComment({
             owner, repo, issue_number,
             body: config.message.log_required.replace('{{username}}', username),
@@ -13168,11 +13169,11 @@ rules.push(new rools_1.Rule({
     when: [
         (facts) => ['issue-opened', 'issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
         (facts) => !facts.collaborator,
-        (facts) => facts.labeled(config.label.log_required),
+        (facts) => labeled(facts, config.label.log_required),
         (facts) => facts.log_present,
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
-        yield facts.unlabel(config.label.log_required);
+        yield unlabel(facts, config.label.log_required);
     })
 }));
 rules.push(new rools_1.Rule({
@@ -13181,7 +13182,7 @@ rules.push(new rools_1.Rule({
         (facts) => ['issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
-        yield (facts.collaborator ? facts.label(config.label.awaiting) : facts.unlabel(config.label.awaiting));
+        yield (facts.collaborator ? label(facts, config.label.awaiting) : unlabel(facts, config.label.awaiting));
     }),
 }));
 rules.push(new rools_1.Rule({
@@ -13190,12 +13191,12 @@ rules.push(new rools_1.Rule({
         (facts) => facts.event === 'issue-closed',
         (facts) => !!(config.label.reopened && config.message.no_close),
         (facts) => !facts.collaborator,
-        (facts) => !facts.labeled(config.label.exempt),
+        (facts) => !labeled(facts, config.label.exempt),
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
         yield octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' });
-        if (!facts.labeled(config.label.reopened)) {
-            yield facts.label(config.label.reopened);
+        if (!labeled(facts, config.label.reopened)) {
+            yield label(facts, config.label.reopened);
             yield octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.message.no_close });
         }
     }),
@@ -13204,9 +13205,8 @@ for (const rule of rules) {
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        const facts = new Facts;
-        yield facts.prepare();
-        if (facts.event && facts.labeled(config.label.active, true)) {
+        const facts = yield prepare();
+        if (facts.event && labeled(facts, config.label.active, true)) {
             const rools = new rools_1.Rools({ logging: { error: true, debug: true } });
             yield rools.register(rules);
             yield rools.evaluate(facts);

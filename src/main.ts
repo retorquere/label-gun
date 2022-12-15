@@ -44,49 +44,50 @@ class Facts {
 
   public collaborator = false
   public log_present = false
+}
 
-  async prepare(): Promise<Facts> {
-    try {
-      await octokit.rest.repos.checkCollaborator({ owner, repo, username })
-      this.collaborator = true
-    } catch (err) {
-      this.collaborator = false
-    }
-
-    let body = ''
-    if (github.context.eventName === 'issues') {
-      const { action, issue } = (github.context.payload as IssuesEvent)
-      this.issue = github.context.payload as unknown as Issue
-      body = this.issue.body
-      this.event = `issue-${action}` as 'issue-opened'
-    }
-    else if (github.context.eventName === 'issue_comment') {
-      const { action, comment, issue } = (github.context.payload as IssueCommentEvent)
-      this.issue = issue
-      body = comment.body
-      this.event = `comment-${action}` as 'comment-created'
-    }
-
-    this.log_present = !!body.match(config.log)
-    issue_number = this.issue.number
-
-    return this
+async function prepare(): Promise<Facts> {
+  const facts = new Facts
+  try {
+    await octokit.rest.repos.checkCollaborator({ owner, repo, username })
+    facts.collaborator = true
+  } catch (err) {
+    facts.collaborator = false
   }
 
-  labeled(name: string, dflt = false): boolean {
-    if (!name) return dflt
-    return !!this.issue.labels!.find(label => label.name === name) || dflt
+  let body = ''
+  if (github.context.eventName === 'issues') {
+    const { action, issue } = (github.context.payload as IssuesEvent)
+    facts.issue = github.context.payload as unknown as Issue
+    body = facts.issue.body
+    facts.event = `issue-${action}` as 'issue-opened'
   }
-  async label(name: string) {
-    if (this.issue.labels!.find(label => label.name === name)) return
-    await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [name] })
-    this.issue.labels!.push({ name } as unknown as Label)
+  else if (github.context.eventName === 'issue_comment') {
+    const { action, comment, issue } = (github.context.payload as IssueCommentEvent)
+    facts.issue = issue
+    body = comment.body
+    facts.event = `comment-${action}` as 'comment-created'
   }
-  async unlabel(name: string) {
-    let labels = this.issue.labels!.length
-    this.issue.labels = this.issue.labels!.filter(label => label.name !== name)
-    if (labels !== this.issue.labels!.length) await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name })
-  }
+
+  facts.log_present = !!body.match(config.log)
+  issue_number = facts.issue.number
+
+  return facts
+}
+
+function labeled(facts: Facts, name: string, dflt = false): boolean {
+  if (!name) return dflt
+  return !!facts.issue.labels!.find(label => label.name === name) || dflt
+}
+async function label(facts: Facts, name: string) {
+  if (facts.issue.labels!.find(label => label.name === name)) return
+  await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [name] })
+  facts.issue.labels!.push({ name } as unknown as Label)
+}
+async function unlabel(facts: Facts, name: string) {
+  let labels = facts.issue.labels!.length
+  facts.issue.labels = facts.issue.labels!.filter(label => label.name !== name)
+  if (labels !== facts.issue.labels!.length) await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name })
 }
 
 const rules: Rule[] = []
@@ -97,11 +98,11 @@ rules.push(new Rule({
     (facts: Facts) => !!config.log,
     (facts: Facts) => facts.event === 'issue-opened',
     (facts: Facts) => !facts.collaborator,
-    (facts: Facts) => !facts.labeled(config.label.exempt),
+    (facts: Facts) => !labeled(facts, config.label.exempt),
     (facts: Facts) => !facts.log_present,
   ],
   then: async (facts: Facts) => {
-    await facts.label(config.label.log_required)
+    await label(facts, config.label.log_required)
     await octokit.rest.issues.createComment({
       owner, repo, issue_number,
       body: config.message.log_required.replace('{{username}}', username),
@@ -114,11 +115,11 @@ rules.push(new Rule({
   when: [
     (facts: Facts) => ['issue-opened', 'issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
     (facts: Facts) => !facts.collaborator,
-    (facts: Facts) => facts.labeled(config.label.log_required),
+    (facts: Facts) => labeled(facts, config.label.log_required),
     (facts: Facts) => facts.log_present,
   ],
   then: async (facts: Facts) => {
-    await facts.unlabel(config.label.log_required)
+    await unlabel(facts, config.label.log_required)
   }
 }))
 
@@ -128,7 +129,7 @@ rules.push(new Rule({
     (facts: Facts) => ['issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
   ],
   then: async (facts: Facts) => {
-    await (facts.collaborator ? facts.label(config.label.awaiting) : facts.unlabel(config.label.awaiting))
+    await (facts.collaborator ? label(facts, config.label.awaiting) : unlabel(facts, config.label.awaiting))
   },
 }))
 
@@ -138,12 +139,12 @@ rules.push(new Rule({
     (facts: Facts) => facts.event === 'issue-closed',
     (facts: Facts) => !!(config.label.reopened && config.message.no_close),
     (facts: Facts) => !facts.collaborator,
-    (facts: Facts) => !facts.labeled(config.label.exempt),
+    (facts: Facts) => !labeled(facts, config.label.exempt),
   ],
   then: async (facts: Facts) => {
     await octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' })
-    if (!facts.labeled(config.label.reopened)) {
-      await facts.label(config.label.reopened)
+    if (!labeled(facts, config.label.reopened)) {
+      await label(facts, config.label.reopened)
       await octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.message.no_close })
     }
   },
@@ -153,9 +154,8 @@ for (const rule of rules) {
 }
 
 async function run(): Promise<void> {
-  const facts = new Facts
-  await facts.prepare()
-  if (facts.event && facts.labeled(config.label.active, true)) {
+  const facts = await prepare()
+  if (facts.event && labeled(facts, config.label.active, true)) {
     const rools = new Rools({ logging: { error: true, debug: true } })
     await rools.register(rules)
     await rools.evaluate(facts)
