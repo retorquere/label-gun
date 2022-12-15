@@ -1,10 +1,12 @@
 import fs from 'fs/promises'
 const stringify = require('fast-safe-stringify')
+import { Rools, Rule } from 'rools'
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {
   IssueCommentEvent,
   IssuesEvent,
+  Issue,
   Label,
   Schema
 } from '@octokit/webhooks-definitions/schema'
@@ -12,51 +14,153 @@ import {
 const token = core.getInput('token', { required: true })
 const octokit = github.getOctokit(token)
 
+const owner = github.context.payload.repository?.owner.login || ''
+const repo = github.context.payload.repository?.name || ''
+const username = github.context.payload.sender?.login || ''
+let issue_number = 0
+
 const config = {
-  logID: new class {
-    needed: string = ''
-    regex: RegExp = /^$/
-    message: string = ''
-    prompt: string = ''
+  issue: undefined as unknown as Issue,
+  log: core.getInput('log-id') || core.getInput('log-id.regex') ? new RegExp(core.getInput('log-id') || core.getInput('log-id.regex')) : (undefined as unknown as RegExp),
 
-    constructor() {
-      const input: Record<string, string> = {}
+  label: {
+    active: core.getInput('label.active') || '',
+    awaiting: core.getInput('label.awaiting'),
+    exempt: core.getInput('label.exempt') || '',
+    log_equired: core.getInput('label.log-required') || core.getInput('log-id.label'),
+    reopened: core.getInput('label.reopened') || core.getInput('label.reopen') || '',
+  },
 
-      for (const key of ['label', 'regex', 'message', 'prompt']) {
-        const value = core.getInput(`log-id.${key}`)
-        switch (typeof value) {
-          case 'undefined':
-            break
-          case 'string':
-            if (value) input[key] = value
-            break
-          default:
-            throw new Error(`Unexpected ${typeof value} ${JSON.stringify(value)} for log-id.${key}`)
-        }
-      }
+  message: {
+    log_equired: core.getInput('message.log-id') || core.getInput('logid.message') || core.getInput('log-id.message'),
+    no_close: core.getInput('message.no-close') || core.getInput('no-close.message'),
+  },
+}
 
-      if (Object.keys(input).length !== 0) {
-        for (const key of ['label', 'regex', 'message']) {
-          if (!input[key]) throw new Error(`missing value for log-id.${key}`)
-        }
-        this.needed = input.label
-        this.message = input.message
-        this.regex = new RegExp(input.regex)
-        this.prompt = input.prompt || ''
-      }
+class Facts {
+  public event: 'issue-opened' | 'issue-closed' | 'issue-edited' | 'comment-created' | 'comment-edited' | '' = ''
+  
+  public issue: Issue = undefined as unknown as Issue
+
+  public collaborator = false
+  public log_present = false
+
+  async prepare(): Promise<Facts> {
+    try {
+      await octokit.rest.repos.checkCollaborator({ owner, repo, username })
+      this.collaborator = true
+    } catch (err) {
+      this.collaborator = false
+    }
+
+    let body = ''
+    if (github.context.eventName === 'issues') {
+      const { issue, action } = github.context.payload.issues
+      this.issue = issue
+      body = issue.body
+      this.event = `issue-${action}` as 'issue-opened'
+    }
+    else if (github.context.eventName === 'issue_comment') {
+      const { action, comment, issue } = github.context.payload.issue_comment
+      this.issue = issue
+      body = comment.body
+      this.event = `comment-${action}` as 'comment-created'
+    }
+
+    this.log_present = !!body.match(config.log)
+    issue_number = this.issue.number
+
+    return this
+  }
+
+  labeled(name: string, dflt = false): boolean {
+    if (!name) return dflt
+    return !!this.issue.labels!.find(label => label.name === name) || dflt
+  }
+  async label(name: string) {
+    if (this.issue.labels!.find(label => label.name === name)) return
+    await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [name] })
+    this.issue.labels!.push({ name } as unknown as Label)
+  }
+  async unlabel(name: string) {
+    let labels = this.issue.labels!.length
+    this.issue.labels = this.issue.labels!.filter(label => label.name !== name)
+    if (labels !== this.issue.labels!.length) await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name })
+  }
+}
+
+const rules: Rule[] = []
+
+rules.push(new Rule({
+  name: 'ask for log',
+  when: [
+    (facts: Facts) => !!config.log,
+    (facts: Facts) => facts.event === 'issue-opened',
+    (facts: Facts) => !facts.collaborator,
+    (facts: Facts) => !facts.labeled(config.label.exempt),
+    (facts: Facts) => !facts.log_present,
+  ],
+  then: async (facts: Facts) => {
+    await facts.label(config.label.log_equired)
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number,
+      body: config.message.log_equired.replace('{{username}}', username),
+    })
+  },
+}))
+
+rules.push(new Rule({
+  name: 'acknowledge log',
+  when: [
+    (facts: Facts) => ['issue-opened', 'issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
+    (facts: Facts) => !facts.collaborator,
+    (facts: Facts) => facts.labeled(config.label.log_equired),
+    (facts: Facts) => facts.log_present,
+  ],
+  then: async (facts: Facts) => {
+    await facts.unlabel(config.label.log_equired)
+  }
+}))
+
+rules.push(new Rule({
+  name: 'toggle awaiting',
+  when: [
+    (facts: Facts) => ['issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
+  ],
+  then: async (facts: Facts) => {
+    await (facts.collaborator ? facts.label(config.label.awaiting) : facts.unlabel(config.label.awaiting))
+  },
+}))
+
+rules.push(new Rule({
+  name: 're-open user-closed issue',
+  when: [
+    (facts: Facts) => facts.event === 'issue-closed',
+    (facts: Facts) => !!(config.label.reopened && config.message.no_close),
+    (facts: Facts) => !facts.collaborator,
+    (facts: Facts) => !facts.labeled(config.label.exempt),
+  ],
+  then: async (facts: Facts) => {
+    await octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' })
+    if (!facts.labeled(config.label.reopened)) {
+      await facts.label(config.label.reopened)
+      await octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.message.no_close })
     }
   },
+}))
 
-  labels: {
-    awaiting: core.getInput('label.awaiting'),
-    active: core.getInput('labele.active') || '',
-    exempt: core.getInput('label.exempt') || '',
-    reopen: core.getInput('reopen.label') || '',
-  },
-
-  noclose: core.getInput('no-close.message'),
+for (const rule of rules) {
 }
-if (!config.logID.needed) (config.logID as any) = null
+
+async function run(): Promise<void> {
+  const facts = new Facts
+  await facts.prepare()
+  if (facts.event && facts.labeled(config.label.active, true)) {
+    const rools = new Rools({ logging: { error: true, debug: true } })
+    await rools.register(rules)
+    await rools.evaluate(facts)
+  }
+}
 
 /*
 octokit.hook.wrap('request', async (request, options) => {
@@ -76,105 +180,7 @@ octokit.hook.wrap('request', async (request, options) => {
 })
 */
 
-const owner = github.context.payload.repository?.owner.login || ''
-const repo = github.context.payload.repository?.name || ''
-const username = github.context.payload.sender?.login || ''
-const issue_number = github.context.payload.issue?.number || 0
-const event: { issues?: IssuesEvent; issue_comment?: IssueCommentEvent, $?: IssuesEvent | IssueCommentEvent } = {}
-switch (github.context.eventName) {
-  case 'issues':
-    event.$ = event.issues = github.context.payload as IssuesEvent
-    break
-  case 'issue_comment':
-    event.$ = event.issue_comment = github.context.payload as IssueCommentEvent
-    break
-}
-const labels = (event.$?.issue.labels || []).map((label: Label) => label.name)
-const open: boolean = event.$?.issue.state === 'open'
-
-let isCollaborator = false
-let body = ''
-
-if (config.labels.reopen && labels.includes(config.labels.reopen)) config.noclose = ''
-
-async function run(): Promise<void> {
-  if (!event.$) return
-  if (config.labels.active && !labels.includes(config.labels.active)) return
-
-  try {
-    await octokit.rest.repos.checkCollaborator({ owner, repo, username })
-    isCollaborator = true
-  } catch (err) {
-  }
-
-  body = event.issues?.issue.body || event.issue_comment?.comment.body || ''
-
-  switch (event.issues?.action) {
-    case 'opened':
-      if (!isCollaborator && config.logID && !labels.includes(config.labels.exempt) && !body.match(config.logID.regex)) {
-        await addLabel(config.logID.needed)
-        await octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.logID.message.replace('{{username}}', username) })
-      }
-      break
-
-    case 'edited':
-      if (config.logID && body.match(config.logID.regex)) await removeLabel(config.logID.needed)
-      break
-
-    case 'closed':
-      if (!config.noclose || isCollaborator || labels.includes(config.labels.exempt)) {
-        await awaiting(false)
-        if (config.logID) await removeLabel(config.logID.needed)
-        return
-      }
-
-      await octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.noclose })
-      await octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' })
-      break
-  }
-
-  switch (event.issue_comment?.action) {
-    case 'created':
-      if (!isCollaborator && !open && config.labels.reopen) {
-        await octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' })
-        await addLabel(config.labels.reopen)
-      }
-      if (open) {
-        await awaiting(isCollaborator)
-        if (!isCollaborator) await checkForLog()
-      }
-      break
-    case 'edited':
-      if (open && !isCollaborator) await checkForLog()
-      break
-  }
-}
-
-async function awaiting(on: boolean) {
-  if (on) {
-    await addLabel(config.labels.awaiting)
-  }
-  else {
-    await removeLabel(config.labels.awaiting)
-  }
-}
-
-async function addLabel(label: string) {
-  if (!labels.includes(label)) {
-    await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [label] })
-  }
-}
-
-async function removeLabel(label: string) {
-  if (labels.includes(label)) {
-    await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name: label })
-  }
-}
-
-async function checkForLog() {
-  if (labels.includes(config.logID.needed) && body.match(config.logID.regex)) {
-    await removeLabel(config.logID.needed)
-  }
-}
-
-run()
+run().catch(err => {
+  console.log(err)
+  process.exit(1)
+})
