@@ -30,7 +30,7 @@
     "@actions/github": "^5.1.1",
     "@octokit/request-error": "^3.0.2",
     "@octokit/rest": "^19.0.5",
-    "@octokit/webhooks": "^10.3.1",
+    "@octokit/webhooks": "^10.4.0",
     "@octokit/webhooks-definitions": "^3.65.6",
     "fast-safe-stringify": "^2.1.1",
     "rools": "^2.3.0"

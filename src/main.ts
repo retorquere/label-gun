@@ -20,29 +20,28 @@ const username = github.context.payload.sender?.login || ''
 let issue_number = 0
 
 const config = {
-  issue: undefined as unknown as Issue,
-  log: core.getInput('log-id') || core.getInput('log-id.regex') ? new RegExp(core.getInput('log-id') || core.getInput('log-id.regex')) : (undefined as unknown as RegExp),
+  log: core.getInput('log-id') ? new RegExp(core.getInput('log-id')) : (undefined as unknown as RegExp),
 
   label: {
     active: core.getInput('label.active') || '',
     awaiting: core.getInput('label.awaiting'),
     exempt: core.getInput('label.exempt') || '',
-    log_required: core.getInput('label.log-required') || core.getInput('log-id.label'),
-    reopened: core.getInput('label.reopened') || core.getInput('label.reopen') || '',
+    log_required: core.getInput('label.log-required'),
+    reopened: core.getInput('label.reopened') || '',
   },
 
   message: {
-    log_required: core.getInput('message.log-id') || core.getInput('logid.message') || core.getInput('log-id.message'),
-    no_close: core.getInput('message.no-close') || core.getInput('no-close.message'),
+    log_required: core.getInput('message.log-required'),
+    no_close: core.getInput('message.no-close'),
   },
 }
 
 class Facts {
   public event: 'issue-opened' | 'issue-closed' | 'issue-edited' | 'issue-reopened' | 'comment-created' | 'comment-edited' | '' = ''
-  
   public issue: Issue = undefined as unknown as Issue
-
+  
   public collaborator = false
+
   public log_present = false
   public log_required = false
 }

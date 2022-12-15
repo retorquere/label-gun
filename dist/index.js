@@ -13075,18 +13075,17 @@ const repo = ((_b = github.context.payload.repository) === null || _b === void 0
 const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
 let issue_number = 0;
 const config = {
-    issue: undefined,
-    log: core.getInput('log-id') || core.getInput('log-id.regex') ? new RegExp(core.getInput('log-id') || core.getInput('log-id.regex')) : undefined,
+    log: core.getInput('log-id') ? new RegExp(core.getInput('log-id')) : undefined,
     label: {
         active: core.getInput('label.active') || '',
         awaiting: core.getInput('label.awaiting'),
         exempt: core.getInput('label.exempt') || '',
-        log_required: core.getInput('label.log-required') || core.getInput('log-id.label'),
-        reopened: core.getInput('label.reopened') || core.getInput('label.reopen') || '',
+        log_required: core.getInput('label.log-required'),
+        reopened: core.getInput('label.reopened') || '',
     },
     message: {
-        log_required: core.getInput('message.log-id') || core.getInput('logid.message') || core.getInput('log-id.message'),
-        no_close: core.getInput('message.no-close') || core.getInput('no-close.message'),
+        log_required: core.getInput('message.log-required'),
+        no_close: core.getInput('message.no-close'),
     },
 };
 class Facts {
