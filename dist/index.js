@@ -13120,8 +13120,10 @@ function prepare() {
             body = comment.body;
             facts.event = `comment-${action}`;
         }
-        facts.log_present = !!(body === null || body === void 0 ? void 0 : body.match(config.log));
-        issue_number = facts.issue.number;
+        if (facts.event) {
+            facts.log_present = !!body.match(config.log);
+            issue_number = facts.issue.number;
+        }
         return facts;
     });
 }
