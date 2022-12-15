@@ -44,6 +44,7 @@ class Facts {
 
   public collaborator = false
   public log_present = false
+  public log_required = false
 }
 
 async function prepare(): Promise<Facts> {
@@ -69,6 +70,7 @@ async function prepare(): Promise<Facts> {
     facts.event = `comment-${action}` as 'comment-created'
   }
 
+  if (config.log) facts.log_required = true
   if (config.log && body) facts.log_present = !!body.match(config.log)
   issue_number = facts.issue.number
 
@@ -95,14 +97,15 @@ const rules: Rule[] = []
 rules.push(new Rule({
   name: 'ask for log',
   when: [
-    (facts: Facts) => !!config.log,
     (facts: Facts) => facts.event === 'issue-opened',
+    (facts: Facts) => facts.log_required,
+    (facts: Facts) => !facts.log_present,
     (facts: Facts) => !facts.collaborator,
     (facts: Facts) => !labeled(facts, config.label.exempt),
-    (facts: Facts) => !facts.log_present,
   ],
   then: async (facts: Facts) => {
     await label(facts, config.label.log_required)
+
     if (config.message.log_required) {
       await octokit.rest.issues.createComment({
         owner, repo, issue_number,

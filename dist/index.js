@@ -13095,6 +13095,7 @@ class Facts {
         this.issue = undefined;
         this.collaborator = false;
         this.log_present = false;
+        this.log_required = false;
     }
 }
 function prepare() {
@@ -13120,6 +13121,8 @@ function prepare() {
             body = comment.body;
             facts.event = `comment-${action}`;
         }
+        if (config.log)
+            facts.log_required = true;
         if (config.log && body)
             facts.log_present = !!body.match(config.log);
         issue_number = facts.issue.number;
@@ -13151,11 +13154,11 @@ const rules = [];
 rules.push(new rools_1.Rule({
     name: 'ask for log',
     when: [
-        (facts) => !!config.log,
         (facts) => facts.event === 'issue-opened',
+        (facts) => facts.log_required,
+        (facts) => !facts.log_present,
         (facts) => !facts.collaborator,
         (facts) => !labeled(facts, config.label.exempt),
-        (facts) => !facts.log_present,
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
         yield label(facts, config.label.log_required);
