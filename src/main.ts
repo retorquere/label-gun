@@ -58,7 +58,7 @@ class Facts {
       const { action, issue } = (github.context.payload as IssuesEvent)
       this.issue = github.context.payload as unknown as Issue
       body = this.issue.body
-      this.event = `issue-${github.context.payload.action}` as 'issue-opened'
+      this.event = `issue-${action}` as 'issue-opened'
     }
     else if (github.context.eventName === 'issue_comment') {
       const { action, comment, issue } = (github.context.payload as IssueCommentEvent)
