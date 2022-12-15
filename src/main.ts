@@ -55,6 +55,7 @@ class Facts {
 
     let body = ''
     if (github.context.eventName === 'issues') {
+      console.log(github.context.payload)
       const { issue, action } = github.context.payload.issues
       this.issue = issue
       body = issue.body
