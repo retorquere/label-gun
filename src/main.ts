@@ -27,12 +27,12 @@ const config = {
     active: core.getInput('label.active') || '',
     awaiting: core.getInput('label.awaiting'),
     exempt: core.getInput('label.exempt') || '',
-    log_equired: core.getInput('label.log-required') || core.getInput('log-id.label'),
+    log_required: core.getInput('label.log-required') || core.getInput('log-id.label'),
     reopened: core.getInput('label.reopened') || core.getInput('label.reopen') || '',
   },
 
   message: {
-    log_equired: core.getInput('message.log-id') || core.getInput('logid.message') || core.getInput('log-id.message'),
+    log_required: core.getInput('message.log-id') || core.getInput('logid.message') || core.getInput('log-id.message'),
     no_close: core.getInput('message.no-close') || core.getInput('no-close.message'),
   },
 }
@@ -101,10 +101,10 @@ rules.push(new Rule({
     (facts: Facts) => !facts.log_present,
   ],
   then: async (facts: Facts) => {
-    await facts.label(config.label.log_equired)
+    await facts.label(config.label.log_required)
     await octokit.rest.issues.createComment({
       owner, repo, issue_number,
-      body: config.message.log_equired.replace('{{username}}', username),
+      body: config.message.log_required.replace('{{username}}', username),
     })
   },
 }))
@@ -114,11 +114,11 @@ rules.push(new Rule({
   when: [
     (facts: Facts) => ['issue-opened', 'issue-edited', 'comment-created', 'comment-edited'].includes(facts.event),
     (facts: Facts) => !facts.collaborator,
-    (facts: Facts) => facts.labeled(config.label.log_equired),
+    (facts: Facts) => facts.labeled(config.label.log_required),
     (facts: Facts) => facts.log_present,
   ],
   then: async (facts: Facts) => {
-    await facts.unlabel(config.label.log_equired)
+    await facts.unlabel(config.label.log_required)
   }
 }))
 
