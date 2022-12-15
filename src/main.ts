@@ -38,7 +38,7 @@ const config = {
 }
 
 class Facts {
-  public event: 'issue-opened' | 'issue-closed' | 'issue-edited' | 'comment-created' | 'comment-edited' | '' = ''
+  public event: 'issue-opened' | 'issue-closed' | 'issue-edited' | 'issue-reopened' | 'comment-created' | 'comment-edited' | '' = ''
   
   public issue: Issue = undefined as unknown as Issue
 
