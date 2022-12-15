@@ -69,7 +69,7 @@ async function prepare(): Promise<Facts> {
     facts.event = `comment-${action}` as 'comment-created'
   }
 
-  facts.log_present = !!body?.match(config.log)
+  if (config.log && body) facts.log_present = !!body.match(config.log)
   issue_number = facts.issue.number
 
   return facts
