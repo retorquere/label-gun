@@ -38,7 +38,7 @@ const config = {
 
 class Facts {
   public event: 'issue-opened' | 'issue-closed' | 'issue-edited' | 'issue-reopened' | 'comment-created' | 'comment-edited' | '' = ''
-  public issue: Issue = undefined as unknown as Issue
+  public labels?: string[]
   
   public collaborator = false
 
@@ -58,37 +58,38 @@ async function prepare(): Promise<Facts> {
   let body = ''
   if (github.context.eventName === 'issues') {
     const { action, issue } = (github.context.payload as IssuesEvent)
-    facts.issue = issue
+    facts.labels = issue.labels?.map(label => label.name)
     body = issue.body
     facts.event = `issue-${action}` as 'issue-opened'
+    issue_number = issue.number
   }
   else if (github.context.eventName === 'issue_comment') {
     const { action, comment, issue } = (github.context.payload as IssueCommentEvent)
-    facts.issue = issue
+    facts.labels = issue.labels?.map(label => label.name)
     body = comment.body
     facts.event = `comment-${action}` as 'comment-created'
+    issue_number = issue.number
   }
 
   if (config.log) facts.log_required = true
   if (config.log && body) facts.log_present = !!body.match(config.log)
-  issue_number = facts.issue.number
 
   return facts
 }
 
 function labeled(facts: Facts, name: string, dflt = false): boolean {
   if (!name) return dflt
-  return !!facts.issue.labels!.find(label => label.name === name) || dflt
+  return facts.labels!.includes(name) || dflt
 }
 async function label(facts: Facts, name: string) {
-  if (facts.issue.labels!.find(label => label.name === name)) return
+  if (facts.labels!.includes(name)) return
   await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels: [name] })
-  facts.issue.labels!.push({ name } as unknown as Label)
+  facts.labels!.push(name)
 }
 async function unlabel(facts: Facts, name: string) {
-  let labels = facts.issue.labels!.length
-  facts.issue.labels = facts.issue.labels!.filter(label => label.name !== name)
-  if (labels !== facts.issue.labels!.length) await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name })
+  let labels = facts.labels!.length
+  facts.labels = facts.labels!.filter(label => label !== name)
+  if (labels !== facts.labels!.length) await octokit.rest.issues.removeLabel({ owner, repo, issue_number, name })
 }
 
 const rules: Rule[] = []
