@@ -13185,7 +13185,7 @@ rules.push(new rools_1.Rule({
 rules.push(new rools_1.Rule({
     name: 'toggle awaiting',
     when: [
-        (facts) => ['comment-created'].includes(facts.event),
+        (facts) => facts.event === 'comment-created',
         (facts) => labeled(facts, config.label.awaiting) !== facts.collaborator,
     ],
     then: (facts) => __awaiter(void 0, void 0, void 0, function* () {

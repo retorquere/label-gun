@@ -131,7 +131,7 @@ rules.push(new Rule({
 rules.push(new Rule({
   name: 'toggle awaiting',
   when: [
-    (facts: Facts) => ['comment-created'].includes(facts.event),
+    (facts: Facts) => facts.event === 'comment-created',
     (facts: Facts) => labeled(facts, config.label.awaiting) !== facts.collaborator,
   ],
   then: async (facts: Facts) => {
