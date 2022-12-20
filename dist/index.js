@@ -13091,6 +13091,7 @@ const config = {
 class Facts {
     constructor() {
         this.event = '';
+        this.state = 'open';
         this.collaborator = false;
         this.log_present = false;
         this.log_required = false;
@@ -13113,6 +13114,7 @@ function prepare() {
             facts.labels = (_a = issue.labels) === null || _a === void 0 ? void 0 : _a.map(label => label.name);
             body = issue.body;
             facts.event = `issue-${action}`;
+            facts.state = issue.state || 'open';
             issue_number = issue.number;
         }
         else if (github.context.eventName === 'issue_comment') {
@@ -13120,6 +13122,7 @@ function prepare() {
             facts.labels = (_b = issue.labels) === null || _b === void 0 ? void 0 : _b.map(label => label.name);
             body = comment.body;
             facts.event = `comment-${action}`;
+            facts.state = issue.state;
             issue_number = issue.number;
         }
         if (config.log)
@@ -13206,6 +13209,18 @@ rules.push(new rools_1.Rule({
             yield label(facts, config.label.reopened);
             yield octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.message.no_close });
         }
+    }),
+}));
+rules.push(new rools_1.Rule({
+    name: 're-open issue on user comment',
+    when: [
+        (facts) => facts.event === 'comment-created',
+        (facts) => facts.state === 'closed',
+        (facts) => !facts.collaborator,
+    ],
+    then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
+        label(facts, config.label.reopened);
+        yield octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' });
     }),
 }));
 rules.push(new rools_1.Rule({

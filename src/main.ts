@@ -38,6 +38,7 @@ const config = {
 
 class Facts {
   public event: 'issue-opened' | 'issue-closed' | 'issue-edited' | 'issue-reopened' | 'comment-created' | 'comment-edited' | '' = ''
+  public state: 'open' | 'closed' = 'open'
   public labels?: string[]
   
   public collaborator = false
@@ -61,6 +62,7 @@ async function prepare(): Promise<Facts> {
     facts.labels = issue.labels?.map(label => label.name)
     body = issue.body
     facts.event = `issue-${action}` as 'issue-opened'
+    facts.state = issue.state || 'open'
     issue_number = issue.number
   }
   else if (github.context.eventName === 'issue_comment') {
@@ -68,6 +70,7 @@ async function prepare(): Promise<Facts> {
     facts.labels = issue.labels?.map(label => label.name)
     body = comment.body
     facts.event = `comment-${action}` as 'comment-created'
+    facts.state = issue.state
     issue_number = issue.number
   }
 
@@ -153,6 +156,19 @@ rules.push(new Rule({
       await label(facts, config.label.reopened)
       await octokit.rest.issues.createComment({ owner, repo, issue_number, body: config.message.no_close })
     }
+  },
+}))
+
+rules.push(new Rule({
+  name: 're-open issue on user comment',
+  when: [
+    (facts: Facts) => facts.event === 'comment-created',
+    (facts: Facts) => facts.state === 'closed',
+    (facts: Facts) => !facts.collaborator,
+  ],
+  then: async (facts: Facts) => {
+    label(facts, config.label.reopened)
+    await octokit.rest.issues.update({ owner, repo, issue_number, state: 'open' })
   },
 }))
 
