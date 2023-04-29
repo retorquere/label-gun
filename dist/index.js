@@ -13073,9 +13073,12 @@ const octokit = github.getOctokit(token);
 const owner = ((_a = github.context.payload.repository) === null || _a === void 0 ? void 0 : _a.owner.login) || '';
 const repo = ((_b = github.context.payload.repository) === null || _b === void 0 ? void 0 : _b.name) || '';
 const username = ((_c = github.context.payload.sender) === null || _c === void 0 ? void 0 : _c.login) || '';
+let comment_id = 0;
 let issue_number = 0;
+const shortcode_prefix = 'INPUT_shortcode.';
 const config = {
     log: core.getInput('log-id') ? new RegExp(core.getInput('log-id')) : undefined,
+    body: '',
     label: {
         active: core.getInput('label.active') || '',
         awaiting: core.getInput('label.awaiting'),
@@ -13087,6 +13090,13 @@ const config = {
         log_required: core.getInput('message.log-required'),
         no_close: core.getInput('message.no-close'),
     },
+    shortcodes: Object.keys(process.env)
+        .reduce((acc, key) => {
+        if (process.env[key] && key.startsWith(shortcode_prefix))
+            acc[key.substring(shortcode_prefix.length)] = process.env[key] || key;
+        return acc;
+    }, {}),
+    shortcode: /\0/g,
 };
 class Facts {
     constructor() {
@@ -13095,7 +13105,11 @@ class Facts {
         this.collaborator = false;
         this.log_present = false;
         this.log_required = false;
+        this.has_shortcode = false;
     }
+}
+function re_escape(c) {
+    return c.replace(/[-[\]/{}()*+?.\\^$|]\s*/g, '\\$&');
 }
 function prepare() {
     var _a, _b;
@@ -13108,11 +13122,10 @@ function prepare() {
         catch (err) {
             facts.collaborator = false;
         }
-        let body = '';
         if (github.context.eventName === 'issues') {
             const { action, issue } = github.context.payload;
             facts.labels = (_a = issue.labels) === null || _a === void 0 ? void 0 : _a.map(label => label.name);
-            body = issue.body;
+            config.body = issue.body;
             facts.event = `issue-${action}`;
             facts.state = issue.state || 'open';
             issue_number = issue.number;
@@ -13120,15 +13133,21 @@ function prepare() {
         else if (github.context.eventName === 'issue_comment') {
             const { action, comment, issue } = github.context.payload;
             facts.labels = (_b = issue.labels) === null || _b === void 0 ? void 0 : _b.map(label => label.name);
-            body = comment.body;
+            config.body = comment.body;
             facts.event = `comment-${action}`;
             facts.state = issue.state;
             issue_number = issue.number;
+            comment_id = comment.id;
         }
         if (config.log)
             facts.log_required = true;
-        if (config.log && body)
-            facts.log_present = !!body.match(config.log);
+        if (config.log && config.body)
+            facts.log_present = !!config.body.match(config.log);
+        const shortcodes = Object.keys(config.shortcodes).map(re_escape).join('|');
+        if (shortcodes)
+            config.shortcode = new RegExp(`:(${shortcodes}):`, 'g');
+        if (config.shortcode && config.body.match(config.shortcode))
+            facts.has_shortcode = true;
         return facts;
     });
 }
@@ -13234,6 +13253,18 @@ rules.push(new rools_1.Rule({
             yield unlabel(facts, config.label.reopened);
         if (labeled(facts, config.label.awaiting))
             yield unlabel(facts, config.label.awaiting);
+    }),
+}));
+rules.push(new rools_1.Rule({
+    name: 'expand shortcodes',
+    when: [
+        (facts) => facts.collaborator && facts.has_shortcode
+    ],
+    then: (facts) => __awaiter(void 0, void 0, void 0, function* () {
+        facts.has_shortcode = false;
+        const body = config.body.replace(config.shortcode, (match, shortcode) => config.shortcodes[shortcode] || match);
+        if (body !== config.body)
+            yield octokit.rest.issues.updateComment({ owner, repo, comment_id, body });
     }),
 }));
 function run() {

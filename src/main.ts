@@ -17,10 +17,14 @@ const octokit = github.getOctokit(token)
 const owner = github.context.payload.repository?.owner.login || ''
 const repo = github.context.payload.repository?.name || ''
 const username = github.context.payload.sender?.login || ''
+let comment_id = 0
 let issue_number = 0
 
+const shortcode_prefix = 'INPUT_shortcode.'
 const config = {
   log: core.getInput('log-id') ? new RegExp(core.getInput('log-id')) : (undefined as unknown as RegExp),
+
+  body: '',
 
   label: {
     active: core.getInput('label.active') || '',
@@ -34,6 +38,14 @@ const config = {
     log_required: core.getInput('message.log-required'),
     no_close: core.getInput('message.no-close'),
   },
+
+  shortcodes: Object.keys(process.env)
+    .reduce((acc: Record<string, string>, key: string) => {
+      if (process.env[key] && key.startsWith(shortcode_prefix)) acc[key.substring(shortcode_prefix.length)] = process.env[key] || key
+      return acc
+    }, {}),
+
+  shortcode: /\0/g,
 }
 
 class Facts {
@@ -45,6 +57,12 @@ class Facts {
 
   public log_present = false
   public log_required = false
+
+  public has_shortcode = false
+}
+
+function re_escape(c: string): string {
+  return c.replace(/[-[\]/{}()*+?.\\^$|]\s*/g, '\\$&')
 }
 
 async function prepare(): Promise<Facts> {
@@ -56,11 +74,10 @@ async function prepare(): Promise<Facts> {
     facts.collaborator = false
   }
 
-  let body = ''
   if (github.context.eventName === 'issues') {
     const { action, issue } = (github.context.payload as IssuesEvent)
     facts.labels = issue.labels?.map(label => label.name)
-    body = issue.body
+    config.body = issue.body
     facts.event = `issue-${action}` as 'issue-opened'
     facts.state = issue.state || 'open'
     issue_number = issue.number
@@ -68,14 +85,20 @@ async function prepare(): Promise<Facts> {
   else if (github.context.eventName === 'issue_comment') {
     const { action, comment, issue } = (github.context.payload as IssueCommentEvent)
     facts.labels = issue.labels?.map(label => label.name)
-    body = comment.body
+    config.body = comment.body
     facts.event = `comment-${action}` as 'comment-created'
     facts.state = issue.state
     issue_number = issue.number
+    comment_id = comment.id
   }
 
   if (config.log) facts.log_required = true
-  if (config.log && body) facts.log_present = !!body.match(config.log)
+  if (config.log && config.body) facts.log_present = !!config.body.match(config.log)
+
+  const shortcodes: string = Object.keys(config.shortcodes).map(re_escape).join('|')
+  if (shortcodes) config.shortcode = new RegExp(`:(${shortcodes}):`, 'g')
+
+  if (config.shortcode && config.body.match(config.shortcode)) facts.has_shortcode = true
 
   return facts
 }
@@ -181,6 +204,18 @@ rules.push(new Rule({
   then: async (facts: Facts) => {
     if (labeled(facts, config.label.reopened)) await unlabel(facts, config.label.reopened)
     if (labeled(facts, config.label.awaiting)) await unlabel(facts, config.label.awaiting)
+  },
+}))
+
+rules.push(new Rule({
+  name: 'expand shortcodes',
+  when: [
+    (facts: Facts) => facts.collaborator && facts.has_shortcode
+  ],
+  then: async (facts: Facts) => {
+    facts.has_shortcode = false
+    const body = config.body.replace(config.shortcode, (match, shortcode) => config.shortcodes[shortcode] || match)
+    if (body !== config.body) await octokit.rest.issues.updateComment({ owner, repo, comment_id, body })
   },
 }))
 
