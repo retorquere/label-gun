@@ -38,7 +38,7 @@ inputs:
     description: 'comment to post when re-opening message closed by non-collaborator'
     default: ''
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
 branding:
   icon: tag

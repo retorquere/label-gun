@@ -9,7 +9,7 @@ import {
   Issue,
   Label,
   Schema
-} from '@octokit/webhooks-definitions/schema'
+} from '@octokit/webhooks-types'
 
 const token = core.getInput('token', { required: true })
 const octokit = github.getOctokit(token)
@@ -75,9 +75,9 @@ async function prepare(): Promise<Facts> {
   }
 
   if (github.context.eventName === 'issues') {
-    const { action, issue } = (github.context.payload as IssuesEvent)
+    const { action, issue } = github.context.payload as IssuesEvent
     facts.labels = issue.labels?.map(label => label.name)
-    config.body = issue.body
+    config.body = issue.body as string
     facts.event = `issue-${action}` as 'issue-opened'
     facts.state = issue.state || 'open'
     issue_number = issue.number
