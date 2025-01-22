@@ -7,7 +7,7 @@
   "scripts": {
     "build": "npm run package",
     "format-check": "prettier --check **/*.ts",
-    "lint": "echo eslint src/**/*.ts",
+    "lint": "dprint fmt src/*.ts && dprint check src/*.ts",
     "package": "tsc --noEmit && ncc build --source-map --license licenses.txt src/main.ts -o dist",
     "preversion": "npm start && git add -u",
     "postversion": "git push --follow-tags",
@@ -37,9 +37,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
-    "@typescript-eslint/parser": "^8.20.0",
     "@vercel/ncc": "^0.38.3",
-    "eslint": "^9.18.0",
+    "dprint": "^0.48.0",
     "prettier": "3.4.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
