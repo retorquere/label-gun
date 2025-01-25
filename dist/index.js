@@ -30007,7 +30007,7 @@ const User = new (_e = class {
         }
     },
     _collaborator = new WeakMap(),
-    _e);
+    _e)();
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         if (!owner || !repo)

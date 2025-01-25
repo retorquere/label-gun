@@ -1,10 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import { context } from '@actions/github'
-import {
-  Issue,
-  IssueComment,
-} from '@octokit/webhooks-types'
+import { Issue, IssueComment } from '@octokit/webhooks-types'
 
 const token = core.getInput('token', { required: true })
 const octokit = github.getOctokit(token)
@@ -47,7 +44,7 @@ const User = new class {
   async kind(username: string): Promise<'user' | 'collaborator'> {
     return (await this.isCollaborator(username)) ? 'collaborator' : 'user'
   }
-}
+}()
 
 async function run(): Promise<void> {
   if (!owner || !repo) throw new Error('No repository found')
@@ -58,7 +55,8 @@ async function run(): Promise<void> {
   if (context.eventName === 'issues') {
     issue = context.payload.issue as Issue
     body = issue.body || ''
-  } else if (context.eventName === 'issue_comment') {
+  }
+  else if (context.eventName === 'issue_comment') {
     issue = context.payload.issue as Issue
     const comment = context.payload.comment as IssueComment
     body = comment.body || ''
@@ -84,7 +82,7 @@ async function run(): Promise<void> {
     user: false,
     owner: false,
   }
-  for (const user of [ sender, issue.user.login ].concat(comments.map(comment => comment.user?.login || ''))) {
+  for (const user of [sender, issue.user.login].concat(comments.map(comment => comment.user?.login || ''))) {
     if (!user) continue
 
     if (await User.isCollaborator(user)) {
@@ -99,7 +97,7 @@ async function run(): Promise<void> {
   const managed = active.user && !$labeled(input.label.exempt) && (!input.label.active || $labeled(input.label.active))
 
   if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
-    await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [ input.assignee ] })
+    await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [input.assignee] })
   }
 
   if (await User.isCollaborator(sender)) {
