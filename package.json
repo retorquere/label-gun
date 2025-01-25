@@ -36,7 +36,7 @@
     "rools": "^2.3.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.7",
+    "@types/node": "^22.10.10",
     "@vercel/ncc": "^0.38.3",
     "dprint": "^0.48.0",
     "prettier": "3.4.2",
