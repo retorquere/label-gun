@@ -13,29 +13,25 @@ inputs:
     required: false
     description: 'ignore issues with this tag'
     default: ''
-  label.log-required:
-    required: false
-    description: 'tag issues with missing log ID with this label'
-    default: ''
   label.awaiting:
     required: true
-    description: 'follow-up prompt when log ID remains missing'
+    description: 'label issues that require user feedback to proceed'
     default: 'awaiting-user-feedback'
   label.reopened:
     required: false
     description: 're-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators'
     default: ''
-  log-id:
+  log.regex:
     required: false
-    description: 'search for this pattern to detect log ID'
+    description: 'search for this regular expression to detect log ID'
     default: ''
-  message.log-required:
+  log.message:
     required: false
     description: 'post this comment when log ID is missing'
     default: ''
-  message.no-close:
+  log.label:
     required: false
-    description: 'comment to post when re-opening message closed by non-collaborator'
+    description: 'tag issues with missing log ID with this label'
     default: ''
 runs:
   using: 'node20'
