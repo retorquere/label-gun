@@ -29992,20 +29992,20 @@ if (input.verbose)
     console.log(input);
 const User = new (_f = class {
         constructor() {
-            _collaborator.set(this, { 'github-actions[bot]': true });
+            _collaborator.set(this, {});
         }
         isCollaborator(username_1) {
-            return __awaiter(this, arguments, void 0, function* (username, allowbot = false) {
+            return __awaiter(this, arguments, void 0, function* (username, allowBot = false) {
                 if (!username)
                     return false;
-                if ((username.endsWith('[bot]') || (username === sender && bot)) && !allowbot) {
+                if (username.endsWith('[bot]') || (username === sender && bot)) {
                     if (input.verbose)
-                        console.log(username, 'is a bot, which is not actually a contributor');
-                    return false;
+                        console.log(username, 'is a bot, which we', allowBot ? 'consider' : 'do not consider', 'to be a contributor');
+                    return allowBot;
                 }
                 if (typeof __classPrivateFieldGet(this, _collaborator, "f")[username] !== 'boolean') {
                     const { data: user } = yield octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
-                    __classPrivateFieldGet(this, _collaborator, "f")[username] = user.permission !== 'none';
+                    __classPrivateFieldGet(this, _collaborator, "f")[username] = user.permission === 'admin';
                     if (input.verbose)
                         console.log(username, 'has permission', user.permission, 'and is', __classPrivateFieldGet(this, _collaborator, "f")[username] ? 'a' : 'not a', 'contributor');
                 }

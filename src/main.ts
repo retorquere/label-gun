@@ -35,18 +35,19 @@ const input = {
 if (input.verbose) console.log(input)
 
 const User = new class {
-  #collaborator: Record<string, boolean> = { 'github-actions[bot]': true }
+  #collaborator: Record<string, boolean> = {}
 
-  async isCollaborator(username?: string, allowbot=false): Promise<boolean> {
+  async isCollaborator(username?: string, allowBot=false): Promise<boolean> {
     if (!username) return false
-    if ((username.endsWith('[bot]') || (username === sender && bot)) && !allowbot) {
-      if (input.verbose) console.log(username, 'is a bot, which is not actually a contributor')
-      return false
+
+    if (username.endsWith('[bot]') || (username === sender && bot)) {
+      if (input.verbose) console.log(username, 'is a bot, which we', allowBot ? 'consider' : 'do not consider', 'to be a contributor')
+      return allowBot
     }
 
     if (typeof this.#collaborator[username] !== 'boolean') {
       const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username })
-      this.#collaborator[username] = user.permission !== 'none'
+      this.#collaborator[username] = user.permission === 'admin'
       if (input.verbose) console.log(username, 'has permission', user.permission, 'and is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
     }
     return this.#collaborator[username]
