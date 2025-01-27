@@ -34,7 +34,7 @@ inputs:
     description: 'tag issues with missing log ID with this label'
     default: ''
 runs:
-  using: 'node23'
+  using: 'node20'
   main: 'dist/index.js'
 branding:
   icon: tag
