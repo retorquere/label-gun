@@ -33,6 +33,10 @@ inputs:
     required: false
     description: 'tag issues with missing log ID with this label'
     default: ''
+  assign:
+    required: false
+    description: 'assign active issues to this contributor when running the action manually'
+    default: ''
   verbose:
     required: false
     description: 'log activity'
