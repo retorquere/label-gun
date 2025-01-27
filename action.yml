@@ -41,6 +41,10 @@ inputs:
     required: false
     description: 'log activity'
     default: ''
+  state:
+    required: false
+    description: 'when dispatching, run for this issue state'
+    default: 'all'
 runs:
   using: 'node20'
   main: 'dist/index.js'

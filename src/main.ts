@@ -12,6 +12,18 @@ const repo: string = context.payload.repository?.name || ''
 
 if (core.getInput('verbose') && !(core.getInput('verbose').match(/^(true|false)$/i))) throw new Error(`Unexpected verbose value ${core.getInput('verbose')}`)
 
+function getState(): 'all' | 'closed' | 'open' {
+  const state = core.getInput('state') || 'all'
+  switch (state) {
+    case 'all':
+    case 'closed':
+    case 'open':
+      return state
+    default:
+      console.log(`invalid state ${JSON.stringify(state)}, assuming "all"`)
+      return 'all'
+  }
+}
 const input = {
   label: {
     awaiting: core.getInput('label.awaiting') || '',
@@ -27,6 +39,7 @@ const input = {
   },
 
   assignee: core.getInput('assign'),
+  state: getState(),
 
   verbose: (core.getInput('verbose') || '').toLowerCase() === 'true',
 }
@@ -170,7 +183,7 @@ async function run(): Promise<void> {
       }
 
       case 'workflow_dispatch': {
-        for (const issue of await octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: 'all', per_page: 100 })) {
+        for (const issue of await octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: input.state, per_page: 100 })) {
           await update(issue as unknown as Issue, '')
         }
         return

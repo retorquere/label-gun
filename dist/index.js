@@ -29972,6 +29972,18 @@ const owner = ((_d = (_c = github_1.context.payload.repository) === null || _c =
 const repo = ((_e = github_1.context.payload.repository) === null || _e === void 0 ? void 0 : _e.name) || '';
 if (core.getInput('verbose') && !(core.getInput('verbose').match(/^(true|false)$/i)))
     throw new Error(`Unexpected verbose value ${core.getInput('verbose')}`);
+function getState() {
+    const state = core.getInput('state') || 'all';
+    switch (state) {
+        case 'all':
+        case 'closed':
+        case 'open':
+            return state;
+        default:
+            console.log(`invalid state ${JSON.stringify(state)}, assuming "all"`);
+            return 'all';
+    }
+}
 const input = {
     label: {
         awaiting: core.getInput('label.awaiting') || '',
@@ -29985,6 +29997,7 @@ const input = {
         label: core.getInput('log.label') || '',
     },
     assignee: core.getInput('assign'),
+    state: getState(),
     verbose: (core.getInput('verbose') || '').toLowerCase() === 'true',
 };
 if (input.verbose)
@@ -30138,7 +30151,7 @@ function run() {
                     return yield update(issue, (comment === null || comment === void 0 ? void 0 : comment.body) || '');
                 }
                 case 'workflow_dispatch': {
-                    for (const issue of yield octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: 'all', per_page: 100 })) {
+                    for (const issue of yield octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: input.state, per_page: 100 })) {
                         yield update(issue, '');
                     }
                     return;
