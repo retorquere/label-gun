@@ -10,6 +10,8 @@ const bot: boolean = context.payload.sender?.type === 'Bot'
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
+if (core.getInput('verbose') && !(core.getInput('verbose').match(/^(true|false)$/i))) throw new Error(`Unexpected verbose value ${core.getInput('verbose')}`)
+
 const input = {
   label: {
     active: core.getInput('label.active') || '',
@@ -27,7 +29,7 @@ const input = {
 
   assignee: core.getInput('assign'),
 
-  verbose: !!core.getInput('verbose'),
+  verbose: (core.getInput('verbose') || '').toLowerCase() === 'true',
 }
 
 if (input.verbose) console.log(input)

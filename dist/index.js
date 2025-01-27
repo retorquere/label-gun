@@ -29970,6 +29970,8 @@ const sender = ((_a = github_1.context.payload.sender) === null || _a === void 0
 const bot = ((_b = github_1.context.payload.sender) === null || _b === void 0 ? void 0 : _b.type) === 'Bot';
 const owner = ((_d = (_c = github_1.context.payload.repository) === null || _c === void 0 ? void 0 : _c.owner) === null || _d === void 0 ? void 0 : _d.login) || '';
 const repo = ((_e = github_1.context.payload.repository) === null || _e === void 0 ? void 0 : _e.name) || '';
+if (core.getInput('verbose') && !(core.getInput('verbose').match(/^(true|false)$/i)))
+    throw new Error(`Unexpected verbose value ${core.getInput('verbose')}`);
 const input = {
     label: {
         active: core.getInput('label.active') || '',
@@ -29984,7 +29986,7 @@ const input = {
         label: core.getInput('log.label') || '',
     },
     assignee: core.getInput('assign'),
-    verbose: !!core.getInput('verbose'),
+    verbose: (core.getInput('verbose') || '').toLowerCase() === 'true',
 };
 if (input.verbose)
     console.log(input);
