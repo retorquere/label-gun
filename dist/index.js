@@ -29959,17 +29959,17 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _a, _b, _c, _d;
-var _collaborator, _e;
+var _a, _b, _c, _d, _e;
+var _collaborator, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
-const github = __importStar(__nccwpck_require__(3228));
 const github_1 = __nccwpck_require__(3228);
 const token = core.getInput('token', { required: true });
-const octokit = github.getOctokit(token);
+const octokit = (0, github_1.getOctokit)(token);
 const sender = ((_a = github_1.context.payload.sender) === null || _a === void 0 ? void 0 : _a.login) || '';
-const owner = ((_c = (_b = github_1.context.payload.repository) === null || _b === void 0 ? void 0 : _b.owner) === null || _c === void 0 ? void 0 : _c.login) || '';
-const repo = ((_d = github_1.context.payload.repository) === null || _d === void 0 ? void 0 : _d.name) || '';
+const bot = ((_b = github_1.context.payload.sender) === null || _b === void 0 ? void 0 : _b.type) === 'Bot';
+const owner = ((_d = (_c = github_1.context.payload.repository) === null || _c === void 0 ? void 0 : _c.owner) === null || _d === void 0 ? void 0 : _d.login) || '';
+const repo = ((_e = github_1.context.payload.repository) === null || _e === void 0 ? void 0 : _e.name) || '';
 const input = {
     label: {
         active: core.getInput('label.active') || '',
@@ -29985,13 +29985,17 @@ const input = {
     },
     assignee: core.getInput('assign'),
 };
-const User = new (_e = class {
+const User = new (_f = class {
         constructor() {
             _collaborator.set(this, { 'github-actions[bot]': true });
         }
-        isCollaborator(username) {
-            return __awaiter(this, void 0, void 0, function* () {
+        isCollaborator(username_1) {
+            return __awaiter(this, arguments, void 0, function* (username, allowbot = false) {
                 if (!username)
+                    return false;
+                if (username.endsWith('[bot]') && !allowbot)
+                    return false;
+                if (username === sender && bot && !allowbot)
                     return false;
                 if (typeof __classPrivateFieldGet(this, _collaborator, "f")[username] !== 'boolean') {
                     const { data: user } = yield octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
@@ -30007,22 +30011,9 @@ const User = new (_e = class {
         }
     },
     _collaborator = new WeakMap(),
-    _e)();
-function run() {
+    _f)();
+function update(issue, body) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (!owner || !repo)
-            throw new Error('No repository found');
-        let issue;
-        let body = '';
-        if (github_1.context.eventName === 'issues') {
-            issue = github_1.context.payload.issue;
-            body = issue.body || '';
-        }
-        else if (github_1.context.eventName === 'issue_comment') {
-            issue = github_1.context.payload.issue;
-            const comment = github_1.context.payload.comment;
-            body = comment.body || '';
-        }
         if (!issue)
             throw new Error('No issue found');
         function $labeled(...name) {
@@ -30062,7 +30053,8 @@ function run() {
         }
         const managed = active.user && !$labeled(input.label.exempt) && (!input.label.active || $labeled(input.label.active));
         if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
-            yield octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [input.assignee] });
+            const assignee = (yield User.isCollaborator(sender, false)) ? sender : input.assignee;
+            yield octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] });
         }
         if (yield User.isCollaborator(sender)) {
             if (github_1.context.payload.action != 'edited' && managed && issue.state !== 'closed')
@@ -30081,7 +30073,10 @@ function run() {
             }
             yield $unlabel(input.label.awaiting);
             if (managed && input.log.regex) {
-                const found = body.match(input.log.regex);
+                let found = issue.state === 'closed' || !!body.match(input.log.regex);
+                if (!found && github_1.context.eventName === 'workflow_dispatch') {
+                    found = !!([issue.body || '', ...(comments.map(comment => comment.body || ''))].find((b) => b.match(input.log.regex)));
+                }
                 if (found) {
                     yield $unlabel(input.log.label);
                 }
@@ -30112,10 +30107,39 @@ octokit.hook.wrap('request', async (request, options) => {
   }
 })
 */
-run().catch(err => {
-    console.log(err);
-    process.exit(1);
-});
+function run() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            if (!owner || !repo)
+                throw new Error('No repository found');
+            switch (github_1.context.eventName) {
+                case 'issues': {
+                    const issue = github_1.context.payload.issue;
+                    return yield update(issue, (issue === null || issue === void 0 ? void 0 : issue.body) || '');
+                }
+                case 'issue_comment': {
+                    const issue = github_1.context.payload.issue;
+                    const comment = github_1.context.payload.comment;
+                    return yield update(issue, (comment === null || comment === void 0 ? void 0 : comment.body) || '');
+                }
+                case 'workflow_dispatch': {
+                    for (const issue of yield octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: 'all', per_page: 100 })) {
+                        yield update(issue, '');
+                    }
+                    return;
+                }
+                default: {
+                    throw new Error(`Unexpected event ${github_1.context.eventName}`);
+                }
+            }
+        }
+        catch (err) {
+            console.log(err);
+            process.exit(1);
+        }
+    });
+}
+run();
 
 
 /***/ }),

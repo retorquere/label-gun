@@ -39,6 +39,7 @@
     "@types/node": "^22.10.10",
     "@vercel/ncc": "^0.38.3",
     "dprint": "^0.48.0",
+    "github-projectv2-csv-exporter": "^1.1.11",
     "prettier": "3.4.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"

@@ -1,12 +1,12 @@
 import * as core from '@actions/core'
-import * as github from '@actions/github'
-import { context } from '@actions/github'
+import { getOctokit, context } from '@actions/github'
 import { Issue, IssueComment } from '@octokit/webhooks-types'
 
 const token = core.getInput('token', { required: true })
-const octokit = github.getOctokit(token)
+const octokit = getOctokit(token)
 
 const sender: string = context.payload.sender?.login || ''
+const bot: boolean = context.payload.sender?.type === 'Bot'
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
@@ -31,8 +31,10 @@ const input = {
 const User = new class {
   #collaborator: Record<string, boolean> = { 'github-actions[bot]': true }
 
-  async isCollaborator(username?: string): Promise<boolean> {
+  async isCollaborator(username?: string, allowbot=false): Promise<boolean> {
     if (!username) return false
+    if (username.endsWith('[bot]') && !allowbot) return false
+    if (username === sender && bot && !allowbot) return false
 
     if (typeof this.#collaborator[username] !== 'boolean') {
       const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username })
@@ -46,22 +48,7 @@ const User = new class {
   }
 }()
 
-async function run(): Promise<void> {
-  if (!owner || !repo) throw new Error('No repository found')
-
-  let issue: Issue | undefined
-
-  let body = ''
-  if (context.eventName === 'issues') {
-    issue = context.payload.issue as Issue
-    body = issue.body || ''
-  }
-  else if (context.eventName === 'issue_comment') {
-    issue = context.payload.issue as Issue
-    const comment = context.payload.comment as IssueComment
-    body = comment.body || ''
-  }
-
+async function update(issue: Issue, body: string): Promise<void> {
   if (!issue) throw new Error('No issue found')
 
   function $labeled(...name: string[]) {
@@ -97,7 +84,8 @@ async function run(): Promise<void> {
   const managed = active.user && !$labeled(input.label.exempt) && (!input.label.active || $labeled(input.label.active))
 
   if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
-    await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [input.assignee] })
+    const assignee = await User.isCollaborator(sender, false) ? sender : input.assignee
+    await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] })
   }
 
   if (await User.isCollaborator(sender)) {
@@ -117,7 +105,10 @@ async function run(): Promise<void> {
     await $unlabel(input.label.awaiting)
 
     if (managed && input.log.regex) {
-      const found = body.match(input.log.regex)
+      let found = issue.state === 'closed' || !!body.match(input.log.regex)
+      if (!found && context.eventName === 'workflow_dispatch') {
+        found = !!([ issue.body || '', ...(comments.map(comment => comment.body || '')) ].find((b: string) => b.match(input.log.regex)))
+      }
       if (found) {
         await $unlabel(input.log.label)
       }
@@ -149,7 +140,38 @@ octokit.hook.wrap('request', async (request, options) => {
 })
 */
 
-run().catch(err => {
-  console.log(err)
-  process.exit(1)
-})
+async function run(): Promise<void> {
+  try {
+    if (!owner || !repo) throw new Error('No repository found')
+
+    switch (context.eventName) {
+      case 'issues': {
+        const issue = context.payload.issue as Issue
+        return await update(issue, issue?.body || '')
+      }
+
+      case 'issue_comment': {
+        const issue = context.payload.issue as Issue
+        const comment = context.payload.comment as IssueComment
+        return await update(issue, comment?.body || '')
+      }
+
+      case 'workflow_dispatch': {
+        for (const issue of await octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: 'all', per_page: 100 })) {
+          await update(issue as unknown as Issue, '')
+        }
+        return
+      }
+
+      default: {
+        throw new Error(`Unexpected event ${context.eventName}`)
+      }
+    }
+  }
+  catch (err) {
+    console.log(err)
+    process.exit(1)
+  }
+}
+
+run()
