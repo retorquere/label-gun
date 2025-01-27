@@ -30071,10 +30071,9 @@ function update(issue, body) {
         if (input.verbose)
             console.log(sender, 'collaborator:', yield User.isCollaborator(sender));
         if (yield User.isCollaborator(sender)) {
-            if (input.verbose)
-                console.log({ action: github_1.context.payload.action, managed, state: issue.state });
-            if (github_1.context.payload.action != 'edited' && managed && issue.state !== 'closed')
-                yield $label(input.label.awaiting);
+            if (github_1.context.payload.action != 'edited' && managed) {
+                yield (issue.state === 'open' ? $label(input.label.awaiting) : $unlabel(input.label.awaiting));
+            }
         }
         else {
             if (managed && github_1.context.payload.action === 'closed') { // user closed the issue

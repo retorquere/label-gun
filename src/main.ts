@@ -100,8 +100,9 @@ async function update(issue: Issue, body: string): Promise<void> {
 
   if (input.verbose) console.log(sender, 'collaborator:', await User.isCollaborator(sender))
   if (await User.isCollaborator(sender)) {
-    if (input.verbose) console.log({ action: context.payload.action, managed, state: issue.state })
-    if (context.payload.action != 'edited' && managed && issue.state !== 'closed') await $label(input.label.awaiting)
+    if (context.payload.action != 'edited' && managed) {
+      await (issue.state === 'open' ? $label(input.label.awaiting) : $unlabel(input.label.awaiting))
+    }
   }
   else {
     if (managed && context.payload.action === 'closed') { // user closed the issue
