@@ -14,7 +14,6 @@ if (core.getInput('verbose') && !(core.getInput('verbose').match(/^(true|false)$
 
 const input = {
   label: {
-    active: core.getInput('label.active') || '',
     awaiting: core.getInput('label.awaiting') || '',
     exempt: core.getInput('label.exempt') || '',
     reopened: core.getInput('label.reopened') || '',
@@ -60,14 +59,17 @@ async function update(issue: Issue, body: string): Promise<void> {
 
   function $labeled(...name: string[]) {
     name = name.filter(_ => _)
+    if (input.verbose) console.log('testing whether issue is labeled', name)
     return (issue!.labels || []).find(label => name.includes(typeof label === 'string' ? label : (label?.name || '')))
   }
   async function $label(name: string) {
     if (!name || $labeled(name)) return
+    if (input.verbose) console.log('labeling', name)
     await octokit.rest.issues.addLabels({ owner, repo, issue_number: issue!.number, labels: [name] })
   }
   async function $unlabel(name: string) {
     if (!name || !$labeled(name)) return
+    if (input.verbose) console.log('unlabeling', name)
     await octokit.rest.issues.removeLabel({ owner, repo, issue_number: issue!.number, name })
   }
 
@@ -88,7 +90,8 @@ async function update(issue: Issue, body: string): Promise<void> {
 
     if (active.user && active.owner) break
   }
-  const managed = active.user && !$labeled(input.label.exempt) && (!input.label.active || $labeled(input.label.active))
+  const managed = active.user && !$labeled(input.label.exempt)
+  if (input.verbose) console.log({ active, managed, exempt: $labeled(input.label.exempt) })
 
   if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
     const assignee = await User.isCollaborator(sender, false) ? sender : input.assignee

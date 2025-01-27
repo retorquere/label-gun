@@ -29974,7 +29974,6 @@ if (core.getInput('verbose') && !(core.getInput('verbose').match(/^(true|false)$
     throw new Error(`Unexpected verbose value ${core.getInput('verbose')}`);
 const input = {
     label: {
-        active: core.getInput('label.active') || '',
         awaiting: core.getInput('label.awaiting') || '',
         exempt: core.getInput('label.exempt') || '',
         reopened: core.getInput('label.reopened') || '',
@@ -30023,12 +30022,16 @@ function update(issue, body) {
             console.log('processing issue', issue.number);
         function $labeled(...name) {
             name = name.filter(_ => _);
+            if (input.verbose)
+                console.log('testing whether issue is labeled', name);
             return (issue.labels || []).find(label => name.includes(typeof label === 'string' ? label : ((label === null || label === void 0 ? void 0 : label.name) || '')));
         }
         function $label(name) {
             return __awaiter(this, void 0, void 0, function* () {
                 if (!name || $labeled(name))
                     return;
+                if (input.verbose)
+                    console.log('labeling', name);
                 yield octokit.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: [name] });
             });
         }
@@ -30036,6 +30039,8 @@ function update(issue, body) {
             return __awaiter(this, void 0, void 0, function* () {
                 if (!name || !$labeled(name))
                     return;
+                if (input.verbose)
+                    console.log('unlabeling', name);
                 yield octokit.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name });
             });
         }
@@ -30056,7 +30061,9 @@ function update(issue, body) {
             if (active.user && active.owner)
                 break;
         }
-        const managed = active.user && !$labeled(input.label.exempt) && (!input.label.active || $labeled(input.label.active));
+        const managed = active.user && !$labeled(input.label.exempt);
+        if (input.verbose)
+            console.log({ active, managed, exempt: $labeled(input.label.exempt) });
         if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
             const assignee = (yield User.isCollaborator(sender, false)) ? sender : input.assignee;
             yield octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] });
