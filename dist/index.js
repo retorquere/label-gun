@@ -30007,7 +30007,7 @@ const User = new (_f = class {
                     const { data: user } = yield octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
                     __classPrivateFieldGet(this, _collaborator, "f")[username] = user.permission !== 'none';
                     if (input.verbose)
-                        console.log(username, 'is', __classPrivateFieldGet(this, _collaborator, "f")[username] ? 'a' : 'not a', 'contributor');
+                        console.log(username, 'has permission', user.permission, 'and is', __classPrivateFieldGet(this, _collaborator, "f")[username] ? 'a' : 'not a', 'contributor');
                 }
                 return __classPrivateFieldGet(this, _collaborator, "f")[username];
             });
@@ -30019,6 +30019,8 @@ function update(issue, body) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!issue)
             throw new Error('No issue found');
+        if (input.verbose)
+            console.log('processing issue', issue.number);
         function $labeled(...name) {
             name = name.filter(_ => _);
             return (issue.labels || []).find(label => name.includes(typeof label === 'string' ? label : ((label === null || label === void 0 ? void 0 : label.name) || '')));

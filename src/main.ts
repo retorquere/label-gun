@@ -47,7 +47,7 @@ const User = new class {
     if (typeof this.#collaborator[username] !== 'boolean') {
       const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username })
       this.#collaborator[username] = user.permission !== 'none'
-      if (input.verbose) console.log(username, 'is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
+      if (input.verbose) console.log(username, 'has permission', user.permission, 'and is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
     }
     return this.#collaborator[username]
   }
@@ -55,6 +55,7 @@ const User = new class {
 
 async function update(issue: Issue, body: string): Promise<void> {
   if (!issue) throw new Error('No issue found')
+  if (input.verbose) console.log('processing issue', issue.number)
 
   function $labeled(...name: string[]) {
     name = name.filter(_ => _)
