@@ -26,25 +26,28 @@ const input = {
   },
 
   assignee: core.getInput('assign'),
+
+  verbose: !!core.getInput('verbose'),
 }
+
+if (input.verbose) console.log(input)
 
 const User = new class {
   #collaborator: Record<string, boolean> = { 'github-actions[bot]': true }
 
   async isCollaborator(username?: string, allowbot=false): Promise<boolean> {
     if (!username) return false
-    if (username.endsWith('[bot]') && !allowbot) return false
-    if (username === sender && bot && !allowbot) return false
+    if ((username.endsWith('[bot]') || (username === sender && bot)) && !allowbot) {
+      if (input.verbose) console.log(username, 'is a bot, which is not actually a contributor')
+      return false
+    }
 
     if (typeof this.#collaborator[username] !== 'boolean') {
       const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username })
       this.#collaborator[username] = user.permission !== 'none'
+      if (input.verbose) console.log(username, 'is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
     }
     return this.#collaborator[username]
-  }
-
-  async kind(username: string): Promise<'user' | 'collaborator'> {
-    return (await this.isCollaborator(username)) ? 'collaborator' : 'user'
   }
 }()
 
@@ -88,7 +91,9 @@ async function update(issue: Issue, body: string): Promise<void> {
     await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] })
   }
 
+  if (input.verbose) console.log(sender, 'collaborator:', await User.isCollaborator(sender))
   if (await User.isCollaborator(sender)) {
+    if (input.verbose) console.log({ action: context.payload.action, managed, state: issue.state })
     if (context.payload.action != 'edited' && managed && issue.state !== 'closed') await $label(input.label.awaiting)
   }
   else {
@@ -167,6 +172,8 @@ async function run(): Promise<void> {
         throw new Error(`Unexpected event ${context.eventName}`)
       }
     }
+
+    if (input.verbose) console.log('finished')
   }
   catch (err) {
     console.log(err)

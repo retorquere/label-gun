@@ -29984,7 +29984,10 @@ const input = {
         label: core.getInput('log.label') || '',
     },
     assignee: core.getInput('assign'),
+    verbose: !!core.getInput('verbose'),
 };
+if (input.verbose)
+    console.log(input);
 const User = new (_f = class {
         constructor() {
             _collaborator.set(this, { 'github-actions[bot]': true });
@@ -29993,20 +29996,18 @@ const User = new (_f = class {
             return __awaiter(this, arguments, void 0, function* (username, allowbot = false) {
                 if (!username)
                     return false;
-                if (username.endsWith('[bot]') && !allowbot)
+                if ((username.endsWith('[bot]') || (username === sender && bot)) && !allowbot) {
+                    if (input.verbose)
+                        console.log(username, 'is a bot, which is not actually a contributor');
                     return false;
-                if (username === sender && bot && !allowbot)
-                    return false;
+                }
                 if (typeof __classPrivateFieldGet(this, _collaborator, "f")[username] !== 'boolean') {
                     const { data: user } = yield octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
                     __classPrivateFieldGet(this, _collaborator, "f")[username] = user.permission !== 'none';
+                    if (input.verbose)
+                        console.log(username, 'is', __classPrivateFieldGet(this, _collaborator, "f")[username] ? 'a' : 'not a', 'contributor');
                 }
                 return __classPrivateFieldGet(this, _collaborator, "f")[username];
-            });
-        }
-        kind(username) {
-            return __awaiter(this, void 0, void 0, function* () {
-                return (yield this.isCollaborator(username)) ? 'collaborator' : 'user';
             });
         }
     },
@@ -30056,7 +30057,11 @@ function update(issue, body) {
             const assignee = (yield User.isCollaborator(sender, false)) ? sender : input.assignee;
             yield octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] });
         }
+        if (input.verbose)
+            console.log(sender, 'collaborator:', yield User.isCollaborator(sender));
         if (yield User.isCollaborator(sender)) {
+            if (input.verbose)
+                console.log({ action: github_1.context.payload.action, managed, state: issue.state });
             if (github_1.context.payload.action != 'edited' && managed && issue.state !== 'closed')
                 yield $label(input.label.awaiting);
         }
@@ -30132,6 +30137,8 @@ function run() {
                     throw new Error(`Unexpected event ${github_1.context.eventName}`);
                 }
             }
+            if (input.verbose)
+                console.log('finished');
         }
         catch (err) {
             console.log(err);
