@@ -106,7 +106,11 @@ async function update(issue: Issue, body: string): Promise<void> {
   const managed = active.user && !$labeled(input.label.exempt)
   if (input.verbose) console.log({ active, managed, exempt: $labeled(input.label.exempt) })
 
-  if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
+  if (input.assignee && issue.state === 'closed') {
+    const assignees = issue.assignees.map(assignee => assignee.login)
+    if (assignees.length) await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees })
+  }
+  else if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
     const assignee = await User.isCollaborator(sender, false) ? sender : input.assignee
     await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] })
   }

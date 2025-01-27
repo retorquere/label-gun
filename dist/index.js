@@ -30077,7 +30077,12 @@ function update(issue, body) {
         const managed = active.user && !$labeled(input.label.exempt);
         if (input.verbose)
             console.log({ active, managed, exempt: $labeled(input.label.exempt) });
-        if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
+        if (input.assignee && issue.state === 'closed') {
+            const assignees = issue.assignees.map(assignee => assignee.login);
+            if (assignees.length)
+                yield octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees });
+        }
+        else if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
             const assignee = (yield User.isCollaborator(sender, false)) ? sender : input.assignee;
             yield octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] });
         }
