@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import { getOctokit, context } from '@actions/github'
+import { context, getOctokit } from '@actions/github'
 import { Issue, IssueComment } from '@octokit/webhooks-types'
 
 const token = core.getInput('token', { required: true })
@@ -49,7 +49,7 @@ if (input.verbose) console.log(input)
 const User = new class {
   #collaborator: Record<string, boolean> = {}
 
-  async isCollaborator(username?: string, allowBot=false): Promise<boolean> {
+  async isCollaborator(username?: string, allowBot = false): Promise<boolean> {
     if (!username) return false
 
     if (username.endsWith('[bot]') || (username === sender && bot)) {
@@ -137,7 +137,7 @@ async function update(issue: Issue, body: string): Promise<void> {
     if (managed && input.log.regex) {
       let found = issue.state === 'closed' || !!body.match(input.log.regex)
       if (!found && context.eventName === 'workflow_dispatch') {
-        found = !!([ issue.body || '', ...(comments.map(comment => comment.body || '')) ].find((b: string) => b.match(input.log.regex)))
+        found = !!([issue.body || '', ...(comments.map(comment => comment.body || ''))].find((b: string) => b.match(input.log.regex)))
       }
       if (found) {
         await $unlabel(input.log.label)
