@@ -1,0 +1,34 @@
+query($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      title
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            title
+            number
+            owner {
+              ... on Organization { login }
+              ... on User { login }
+            }
+          }
+          fieldValues(first: 50) {
+            nodes {
+              __typename
+              ... on ProjectV2ItemFieldTextValue { text field { ... on ProjectV2FieldCommon { id name } } }
+              ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2FieldCommon { id name } } }
+              ... on ProjectV2ItemFieldDateValue { date field { ... on ProjectV2FieldCommon { id name } } }
+              ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2FieldCommon { id name } } }
+              ... on ProjectV2ItemFieldLabelValue { labels(first: 10) { nodes { name } } field { ... on ProjectV2FieldCommon { id name } } }
+              ... on ProjectV2ItemFieldRepositoryValue { repository { name } field { ... on ProjectV2FieldCommon { id name } } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -45,6 +45,14 @@ inputs:
     required: false
     description: 'when dispatching, run for this issue state'
     default: 'all'
+  project.token:
+    required: false
+    description: 'use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects'
+    default: ''
+  project.url:
+    required: false
+    description: 'URL of project to update'
+    default: ''
 runs:
   using: 'node20'
   main: 'dist/index.js'

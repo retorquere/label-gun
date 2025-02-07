@@ -1,0 +1,32 @@
+mutation($projectId: ID!, $itemId: ID!, $statusFieldId: ID!, $status: String!, $startDateFieldId: ID!, $startDate: DateTime!, $endDateFieldId: ID!, $endDate: DateTime!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId,
+    itemId: $itemId,
+    fieldId: $statusFieldId,
+    value: {singleSelectOptionId: $status}
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId,
+    itemId: $itemId,
+    fieldId: $startDateFieldId,
+    value: {date: $startDate}
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId,
+    itemId: $itemId,
+    fieldId: $endDateFieldId,
+    value: {date: $endDate}
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}

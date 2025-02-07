@@ -1,0 +1,30 @@
+query getProjectV2Id($owner: String!, $projectNumber: Int!) {
+  user: user(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      ... on ProjectV2 {
+        fields(first: 100) {
+          nodes {
+            __typename
+            ... on ProjectV2FieldCommon { id name dataType }
+            ... on ProjectV2SingleSelectField { options { id name } }
+          }
+        }
+      }
+    }
+  }
+  organization: organization(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      ... on ProjectV2 {
+        fields(first: 100) {
+          nodes {
+            __typename
+            ... on ProjectV2FieldCommon { id name dataType }
+            ... on ProjectV2SingleSelectField { options { id name } }
+          }
+        }
+      }
+    }
+  }
+}

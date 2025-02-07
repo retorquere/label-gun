@@ -1,9 +1,7 @@
 import * as core from '@actions/core'
 import { context, getOctokit } from '@actions/github'
 import { Issue, IssueComment } from '@octokit/webhooks-types'
-
-const token = core.getInput('token', { required: true })
-const octokit = getOctokit(token)
+import { graphql } from '@octokit/graphql'
 
 const sender: string = context.payload.sender?.login || ''
 const bot: boolean = context.payload.sender?.type === 'Bot'
@@ -39,12 +37,135 @@ const input = {
   },
 
   assignee: core.getInput('assign'),
-  state: getState(),
+  issue: {
+    state: getState(),
+  },
 
   verbose: (core.getInput('verbose') || '').toLowerCase() === 'true',
+
+  project: {
+    token: core.getInput('project.token') || core.getInput('token') || '',
+    url: core.getInput('project.url') || ''
+    state: {
+      merge: core.getInput('project.state.merge') || '',
+      assigned: core.getInput('project.state.assigned') || '',
+      waiting: core.getInput('project.state.waiting') || '',
+    },
+    field: {
+      startDate: core.getInput('project.field.startDate') || 'Start date',
+      endDate: core.getInput('project.field.endDate') || 'End date',
+      status: core.getInput('project.field.endDatetatus) || 'Status',
+    }
+  }
 }
 
+const token = core.getInput('token', { required: true })
+const octokit = getOctokit(token)
+
 if (input.verbose) console.log(input)
+
+const Project = new class {
+  public q = {
+    fields: require('./fields.graphql')
+    get: require('./card.graphql'),
+    update: require('./update.graphql')
+    create: require('./create.graphql')
+  }
+
+  public id: string
+  public owner: string = ''
+  public type: 'user' | 'organization' | '' = ''
+  public number: number = 0
+  public field: Record<string, string> = {}
+  public state: Record<string, string> = {}
+
+  constructor() {
+    if (input.project.url) {
+      const m = input.project.url.match(/https:\/\/github.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/)
+      if (!m) throw new Error(`${input.project.url} is not a valid project URL`)
+      const [, type, owner, number ] = m
+      this.type = type === 'users' ? 'user' : 'organization'
+      this.owner = owner
+      this.number = parseInt(number)
+    }
+  }
+
+  async load() {
+    if (!input.project.url) return
+
+    const { data: fields } = await graphql({
+      query: Project.q.fields,
+      variables: {
+        owner: this.owner,
+        projectNumber: this.number
+      },
+      headers: {
+        authorization: `Bearer ${input.project.token}`
+      }
+    })
+
+    for (const [field, label] of Object.entries(input.project.fields)) {
+      const pf = project.field.nodes.find(f => f.id && f.name && f.name === label)
+      this.field[field] = pf.id
+
+      if (field === 'status') {
+        for (const [ state, name ] of Object.entries(input.project.state)) {
+          this.state[state] = pf.options.find(o => o.name === name).id
+        }
+      }
+    }
+  }
+
+  asynd get(issue: Issue): ProjectItem {
+    const { data: cards } = await graphql({
+      query: Project.q.get,
+      variables: {
+        owner: this.owner,
+        projectNumber: this.number
+      },
+      headers: {
+        authorization: `Bearer ${input.project.token}`
+      }
+    })
+
+    if (cards.repository?.issue) {
+      return cards.repository.issue.projectItems.nodes.find(node => node.project.owner.login = this.owner && node.project.number === this.number).id
+    }
+    else {
+      const { data: card } = await graphql({
+        query: Project.q.create,
+        variables: {
+          owner: this.id,
+          contentId: issue.node_id
+        },
+        headers: {
+          authorization: `Bearer ${input.project.token}`
+        }
+      })
+
+      return card.addProjectV2ItemById.item.id
+    }
+  }
+
+  update(itemId: string, status: string, startDate: string) {
+    const { data: cards } = await graphql({
+      query: Project.q.update,
+      variables: {
+        projectId: this.id,
+        itemId,
+        statusFieldId: this.field.status,
+        statusValue: this.options[`Status.${status}`],
+        startDateFieldId: this.field.startDate,
+        startDate: startDate,
+        endDateFieldId: this.fields.endDate,
+        endDate: new Date().toISOString(),
+      },
+      headers: {
+        authorization: `Bearer ${input.project.token}`
+      }
+    })
+  }
+}
 
 const User = new class {
   #collaborator: Record<string, boolean> = {}
@@ -150,6 +271,24 @@ async function update(issue: Issue, body: string): Promise<void> {
       }
     }
   }
+
+  if (input.project.url) {
+    // get fresh state
+    const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number }))
+    issue = data as unknown as Issue
+
+    const card = await Project.get(issue)
+
+    if (issue.state === 'closed') {
+      if (input.project.status.merge && $labeled(input.label.merge)) await Project.update(card, issue.created_at, input.project.status.merge)
+    }
+    else if (input.status.assigned && issue.assignees.length) {
+      await Project.update(card, issue.created_at, input.project.status.assigned)
+    }
+    else if (input.state.unassigned && !issue.assignees.length) {
+      await Project.update(card, issue.created_at, input.project.status.unassigned)
+    }
+  }
 }
 
 /*
@@ -174,6 +313,8 @@ async function run(): Promise<void> {
   try {
     if (!owner || !repo) throw new Error('No repository found')
 
+    await Project.load()
+
     switch (context.eventName) {
       case 'issues': {
         const issue = context.payload.issue as Issue
@@ -187,7 +328,7 @@ async function run(): Promise<void> {
       }
 
       case 'workflow_dispatch': {
-        for (const issue of await octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: input.state, per_page: 100 })) {
+        for (const issue of await octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: input.issue.state, per_page: 100 })) {
           await update(issue as unknown as Issue, '')
         }
         return
