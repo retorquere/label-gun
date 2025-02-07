@@ -193,8 +193,9 @@ async function update(issue: Issue, body: string): Promise<void> {
 
   function $labeled(...name: string[]) {
     name = name.filter(_ => _)
-    if (input.verbose) console.log('testing whether issue is labeled', name)
-    return (issue!.labels || []).find(label => name.includes(typeof label === 'string' ? label : (label?.name || '')))
+    const labeled = (issue!.labels || []).find(label => name.includes(typeof label === 'string' ? label : (label?.name || '')))
+    if (input.verbose) console.log('testing whether issue is labeled', name, ':', labeled)
+    return labeled
   }
   async function $label(name: string) {
     if (!name || $labeled(name)) return
