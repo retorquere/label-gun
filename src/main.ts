@@ -1,7 +1,9 @@
 import * as core from '@actions/core'
 import { context, getOctokit } from '@actions/github'
-import { Issue, IssueComment } from '@octokit/webhooks-types'
+import { ProjectsV2Item, Issue, IssueComment } from '@octokit/webhooks-types'
 import { graphql } from '@octokit/graphql'
+import { ProjectV2FieldsQuery, ProjectV2FieldsQueryVariables } from './types'
+import { ProjectCardForIssueQuery } from './types'
 
 const sender: string = context.payload.sender?.login || ''
 const bot: boolean = context.payload.sender?.type === 'Bot'
@@ -9,6 +11,14 @@ const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
 if (core.getInput('verbose') && !(core.getInput('verbose').match(/^(true|false)$/i))) throw new Error(`Unexpected verbose value ${core.getInput('verbose')}`)
+
+function getBool(v: string | undefined) {
+  switch (v || 'true') {
+    case 'true': return true
+    case 'false': return false
+  }
+  throw new Error(`${JSON.stringify(core.getInput('verbose'))} is not a boolean`)
+}
 
 function getState(): 'all' | 'closed' | 'open' {
   const state = core.getInput('state') || 'all'
@@ -22,6 +32,7 @@ function getState(): 'all' | 'closed' | 'open' {
       return 'all'
   }
 }
+
 const input = {
   label: {
     awaiting: core.getInput('label.awaiting') || '',
@@ -41,11 +52,11 @@ const input = {
     state: getState(),
   },
 
-  verbose: (core.getInput('verbose') || '').toLowerCase() === 'true',
+  verbose: getBool(core.getInput('verbose')),
 
   project: {
     token: core.getInput('project.token') || core.getInput('token') || '',
-    url: core.getInput('project.url') || ''
+    url: core.getInput('project.url') || '',
     state: {
       merge: core.getInput('project.state.merge') || '',
       assigned: core.getInput('project.state.assigned') || '',
@@ -54,9 +65,9 @@ const input = {
     field: {
       startDate: core.getInput('project.field.startDate') || 'Start date',
       endDate: core.getInput('project.field.endDate') || 'End date',
-      status: core.getInput('project.field.endDatetatus) || 'Status',
-    }
-  }
+      status: core.getInput('project.field.endDatetatus') || 'Status',
+    },
+  },
 }
 
 const token = core.getInput('token', { required: true })
@@ -66,13 +77,12 @@ if (input.verbose) console.log(input)
 
 const Project = new class {
   public q = {
-    fields: require('./fields.graphql')
-    get: require('./card.graphql'),
-    update: require('./update.graphql')
-    create: require('./create.graphql')
+    fields: require('./get/fields.graphql'),
+    get: require('./get/card.graphql'),
+    update: require('./update.graphql'),
+    create: require('./create.graphql'),
   }
 
-  public id: string
   public owner: string = ''
   public type: 'user' | 'organization' | '' = ''
   public number: number = 0
@@ -93,31 +103,37 @@ const Project = new class {
   async load() {
     if (!input.project.url) return
 
-    const { data: fields } = await graphql({
+    const variables: ProjectV2FieldsQueryVariables = {
+      owner: this.owner,
+      projectNumber: this.number
+    }
+    const data = (await graphql<ProjectV2FieldsQuery>({
       query: Project.q.fields,
-      variables: {
-        owner: this.owner,
-        projectNumber: this.number
-      },
+      variables,
       headers: {
         authorization: `Bearer ${input.project.token}`
       }
-    })
+    }))
+    const fields = (data.user || data.organization)?.projectV2?.fields
+    if (!fields) throw new Error(`${input.project.url} not found`)
 
-    for (const [field, label] of Object.entries(input.project.fields)) {
-      const pf = project.field.nodes.find(f => f.id && f.name && f.name === label)
+    for (const [field, label] of Object.entries(input.project.field)) {
+      const pf = fields.nodes?.find(f => f && f.id && f.name && f.name === label)
+      if (!pf) throw new Error(`${label} not found`)
       this.field[field] = pf.id
 
-      if (field === 'status') {
+      if (pf.__typename === 'ProjectV2SingleSelectField' && field === 'status') {
         for (const [ state, name ] of Object.entries(input.project.state)) {
-          this.state[state] = pf.options.find(o => o.name === name).id
+          const _ = pf.options.find(o => o.name === name)
+          if (!_) throw new Error(`${name} not found`)
+          this.state[state] = _.id
         }
       }
     }
   }
 
-  asynd get(issue: Issue): ProjectItem {
-    const { data: cards } = await graphql({
+  async get(issue: Issue): Promise<ProjectsV2Item> {
+    const data = await graphql<ProjectCardForIssueQuery>({
       query: Project.q.get,
       variables: {
         owner: this.owner,
@@ -128,8 +144,8 @@ const Project = new class {
       }
     })
 
-    if (cards.repository?.issue) {
-      return cards.repository.issue.projectItems.nodes.find(node => node.project.owner.login = this.owner && node.project.number === this.number).id
+    if (data.repository?.issue) {
+      return data.repository.issue.projectItems.nodes.find(node => node.project.owner.login = this.owner && node.project.number === this.number).id
     }
     else {
       const { data: card } = await graphql({
@@ -147,7 +163,7 @@ const Project = new class {
     }
   }
 
-  update(itemId: string, status: string, startDate: string) {
+  update(itemId: string, state: string, startDate: string) {
     const { data: cards } = await graphql({
       query: Project.q.update,
       variables: {
@@ -274,20 +290,16 @@ async function update(issue: Issue, body: string): Promise<void> {
   }
 
   if (input.project.url) {
-    // get fresh state
-    const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number }))
+    const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number })
     issue = data as unknown as Issue
 
     const card = await Project.get(issue)
 
     if (issue.state === 'closed') {
-      if (input.project.status.merge && $labeled(input.label.merge)) await Project.update(card, issue.created_at, input.project.status.merge)
+      if (input.project.status.merge && $labeled(input.label.merge)) await Project.update(card, issue.created_at, Project.state.merge)
     }
-    else if (input.status.assigned && issue.assignees.length) {
-      await Project.update(card, issue.created_at, input.project.status.assigned)
-    }
-    else if (input.state.unassigned && !issue.assignees.length) {
-      await Project.update(card, issue.created_at, input.project.status.unassigned)
+    else if (issue.assignees.length) {
+      await Project.update(card, issue.created_at, $labeled(input.label.awaiting) ? Project.state.awaiting : Project.state.assigned)
     }
   }
 }

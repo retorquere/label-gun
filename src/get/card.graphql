@@ -1,4 +1,4 @@
-query($owner: String!, $repo: String!, $issueNumber: Int!) {
+query ProjectCardForIssue($owner: String!, $repo: String!, $issueNumber: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $issueNumber) {
       id

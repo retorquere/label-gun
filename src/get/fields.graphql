@@ -1,4 +1,4 @@
-query getProjectV2Id($owner: String!, $projectNumber: Int!) {
+query ProjectV2Fields($owner: String!, $projectNumber: Int!) {
   user: user(login: $owner) {
     projectV2(number: $projectNumber) {
       id

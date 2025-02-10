@@ -1,4 +1,4 @@
-mutation($projectId: ID!, $itemId: ID!, $statusFieldId: ID!, $status: String!, $startDateFieldId: ID!, $startDate: DateTime!, $endDateFieldId: ID!, $endDate: DateTime!) {
+mutation updateCard($projectId: ID!, $itemId: ID!, $statusFieldId: ID!, $status: String!, $startDateFieldId: ID!, $startDate: DateTime!, $endDateFieldId: ID!, $endDate: DateTime!) {
   updateProjectV2ItemFieldValue(input: {
     projectId: $projectId,
     itemId: $itemId,
