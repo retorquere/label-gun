@@ -29964,6 +29964,7 @@ var _collaborator, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const github_1 = __nccwpck_require__(3228);
+const request_error_1 = __nccwpck_require__(1015);
 const token = core.getInput('token', { required: true });
 const octokit = (0, github_1.getOctokit)(token);
 const sender = ((_a = github_1.context.payload.sender) === null || _a === void 0 ? void 0 : _a.login) || '';
@@ -30035,9 +30036,10 @@ function update(issue, body) {
             console.log('processing issue', issue.number);
         function $labeled(...name) {
             name = name.filter(_ => _);
+            const labeled = (issue.labels || []).find(label => name.includes(typeof label === 'string' ? label : ((label === null || label === void 0 ? void 0 : label.name) || '')));
             if (input.verbose)
-                console.log('testing whether issue is labeled', name);
-            return (issue.labels || []).find(label => name.includes(typeof label === 'string' ? label : ((label === null || label === void 0 ? void 0 : label.name) || '')));
+                console.log('testing whether issue is labeled', name, ':', labeled);
+            return labeled;
         }
         function $label(name) {
             return __awaiter(this, void 0, void 0, function* () {
@@ -30054,7 +30056,13 @@ function update(issue, body) {
                     return;
                 if (input.verbose)
                     console.log('unlabeling', name);
-                yield octokit.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name });
+                try {
+                    yield octokit.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name });
+                }
+                catch (err) {
+                    if (err instanceof request_error_1.RequestError && err.status !== 404)
+                        throw err;
+                }
             });
         }
         const { data: comments } = yield octokit.rest.issues.listComments({ owner, repo, issue_number: issue.number });
@@ -30082,42 +30090,41 @@ function update(issue, body) {
             if (assignees.length)
                 yield octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees });
         }
-        else if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
+        else if (active.owner && input.assignee && !issue.assignees.length) {
             const assignee = (yield User.isCollaborator(sender, false)) ? sender : input.assignee;
             yield octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] });
         }
         if (input.verbose)
             console.log(sender, 'collaborator:', yield User.isCollaborator(sender));
+        // collab activity
         if (yield User.isCollaborator(sender)) {
             if (github_1.context.payload.action != 'edited' && managed) {
                 yield (issue.state === 'open' ? $label(input.label.awaiting) : $unlabel(input.label.awaiting));
             }
+            return;
         }
-        else {
-            if (managed && github_1.context.payload.action === 'closed') { // user closed the issue
-                if (input.label.reopened && !$labeled(input.label.reopened))
-                    yield $label(input.label.merge);
+        // user activity
+        if (managed && github_1.context.payload.action === 'closed') { // user closed the issue
+            if (issue.assignees.length && input.label.merge)
+                yield $label(input.label.merge);
+        }
+        else if (managed && github_1.context.eventName === 'issue_comment' && issue.state === 'closed') { // user commented on a closed issue
+            yield octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' });
+            yield $label(input.label.reopened);
+        }
+        yield $unlabel(input.label.awaiting);
+        if (managed && input.log.regex) {
+            let found = issue.state === 'closed' || !!body.match(input.log.regex);
+            if (!found && github_1.context.eventName === 'workflow_dispatch') {
+                found = !!([issue.body || '', ...(comments.map(comment => comment.body || ''))].find((b) => b.match(input.log.regex)));
             }
-            else if (github_1.context.eventName === 'issue_comment') { // user commented on a closed issue
-                if (managed && issue.state === 'closed') {
-                    yield octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' });
-                    yield $label(input.label.reopened);
-                }
+            if (found) {
+                yield $unlabel(input.log.label);
             }
-            yield $unlabel(input.label.awaiting);
-            if (managed && input.log.regex) {
-                let found = issue.state === 'closed' || !!body.match(input.log.regex);
-                if (!found && github_1.context.eventName === 'workflow_dispatch') {
-                    found = !!([issue.body || '', ...(comments.map(comment => comment.body || ''))].find((b) => b.match(input.log.regex)));
-                }
-                if (found) {
-                    yield $unlabel(input.log.label);
-                }
-                else if (github_1.context.eventName === 'issues' && github_1.context.payload.action === 'opened' && !$labeled(input.log.label)) { // new issue, missing log
-                    yield $label(input.log.label);
-                    if (input.log.message && sender) {
-                        yield octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: input.log.message.replace('{{username}}', sender) });
-                    }
+            else if (github_1.context.eventName === 'issues' && github_1.context.payload.action === 'opened' && !$labeled(input.log.label)) { // new issue, missing log
+                yield $label(input.log.label);
+                if (input.log.message && sender) {
+                    yield octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: input.log.message.replace('{{username}}', sender) });
                 }
             }
         }
@@ -32042,6 +32049,56 @@ function parseParams (str) {
 module.exports = parseParams
 
 
+/***/ }),
+
+/***/ 1015:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+"use strict";
+__nccwpck_require__.r(__webpack_exports__);
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   RequestError: () => (/* binding */ RequestError)
+/* harmony export */ });
+class RequestError extends Error {
+  name;
+  /**
+   * http status code
+   */
+  status;
+  /**
+   * Request options that lead to the error.
+   */
+  request;
+  /**
+   * Response object if a response was received
+   */
+  response;
+  constructor(message, statusCode, options) {
+    super(message);
+    this.name = "HttpError";
+    this.status = Number.parseInt(statusCode);
+    if (Number.isNaN(this.status)) {
+      this.status = 0;
+    }
+    if ("response" in options) {
+      this.response = options.response;
+    }
+    const requestCopy = Object.assign({}, options.request);
+    if (options.request.headers.authorization) {
+      requestCopy.headers = Object.assign({}, options.request.headers, {
+        authorization: options.request.headers.authorization.replace(
+          / .*$/,
+          " [REDACTED]"
+        )
+      });
+    }
+    requestCopy.url = requestCopy.url.replace(/\bclient_secret=\w+/g, "client_secret=[REDACTED]").replace(/\baccess_token=\w+/g, "access_token=[REDACTED]");
+    this.request = requestCopy;
+  }
+}
+
+
+
 /***/ })
 
 /******/ 	});
@@ -32077,6 +32134,34 @@ module.exports = parseParams
 /******/ 	}
 /******/ 	
 /************************************************************************/
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__nccwpck_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__nccwpck_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";

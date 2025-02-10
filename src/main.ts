@@ -1,6 +1,7 @@
 import * as core from '@actions/core'
 import { context, getOctokit } from '@actions/github'
 import { Issue, IssueComment } from '@octokit/webhooks-types'
+import { RequestError } from '@octokit/request-error'
 
 const token = core.getInput('token', { required: true })
 const octokit = getOctokit(token)
@@ -84,7 +85,12 @@ async function update(issue: Issue, body: string): Promise<void> {
   async function $unlabel(name: string) {
     if (!name || !$labeled(name)) return
     if (input.verbose) console.log('unlabeling', name)
-    await octokit.rest.issues.removeLabel({ owner, repo, issue_number: issue!.number, name })
+    try {
+      await octokit.rest.issues.removeLabel({ owner, repo, issue_number: issue!.number, name })
+    }
+    catch (err) {
+      if (err instanceof RequestError && err.status !==  404) throw err
+    }
   }
 
   const { data: comments } = await octokit.rest.issues.listComments({ owner, repo, issue_number: issue.number })
@@ -105,49 +111,51 @@ async function update(issue: Issue, body: string): Promise<void> {
     if (active.user && active.owner) break
   }
   const managed = active.user && !$labeled(input.label.exempt)
+
   if (input.verbose) console.log({ active, managed, exempt: $labeled(input.label.exempt) })
 
   if (input.assignee && issue.state === 'closed') {
     const assignees = issue.assignees.map(assignee => assignee.login)
     if (assignees.length) await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees })
   }
-  else if (active.owner && input.assignee && !issue.assignees.find(assignee => assignee.login)) {
+  else if (active.owner && input.assignee && !issue.assignees.length) {
     const assignee = await User.isCollaborator(sender, false) ? sender : input.assignee
     await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] })
   }
 
   if (input.verbose) console.log(sender, 'collaborator:', await User.isCollaborator(sender))
+
+  // collab activity
   if (await User.isCollaborator(sender)) {
     if (context.payload.action != 'edited' && managed) {
       await (issue.state === 'open' ? $label(input.label.awaiting) : $unlabel(input.label.awaiting))
     }
+    return
   }
-  else {
-    if (managed && context.payload.action === 'closed') { // user closed the issue
-      if (input.label.reopened && !$labeled(input.label.reopened)) await $label(input.label.merge)
-    }
-    else if (context.eventName === 'issue_comment') { // user commented on a closed issue
-      if (managed && issue.state === 'closed') {
-        await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
-        await $label(input.label.reopened)
-      }
-    }
 
-    await $unlabel(input.label.awaiting)
+  // user activity
+  if (managed && context.payload.action === 'closed') { // user closed the issue
+    if (issue.assignees.length && input.label.merge) await $label(input.label.merge)
+  }
+  else if (managed && context.eventName === 'issue_comment' && issue.state === 'closed') { // user commented on a closed issue
+    await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
+    await $label(input.label.reopened)
+  }
 
-    if (managed && input.log.regex) {
-      let found = issue.state === 'closed' || !!body.match(input.log.regex)
-      if (!found && context.eventName === 'workflow_dispatch') {
-        found = !!([issue.body || '', ...(comments.map(comment => comment.body || ''))].find((b: string) => b.match(input.log.regex)))
-      }
-      if (found) {
-        await $unlabel(input.log.label)
-      }
-      else if (context.eventName === 'issues' && context.payload.action === 'opened' && !$labeled(input.log.label)) { // new issue, missing log
-        await $label(input.log.label)
-        if (input.log.message && sender) {
-          await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: input.log.message.replace('{{username}}', sender) })
-        }
+  await $unlabel(input.label.awaiting)
+
+  if (managed && input.log.regex) {
+    let found = issue.state === 'closed' || !!body.match(input.log.regex)
+    if (!found && context.eventName === 'workflow_dispatch') {
+      found = !!([issue.body || '', ...(comments.map(comment => comment.body || ''))].find((b: string) => b.match(input.log.regex)))
+    }
+    if (found) {
+      await $unlabel(input.log.label)
+    }
+    else if (context.eventName === 'issues' && context.payload.action === 'opened' && !$labeled(input.log.label)) { // new issue, missing log
+      await $label(input.log.label)
+      if (input.log.message && sender) {
+        await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: input.log.message.replace('{{username}}', sender) })
       }
     }
   }
