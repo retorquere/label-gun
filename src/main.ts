@@ -142,6 +142,8 @@ const Project = new class {
   }
 
   async get(issue: Issue): Promise<string> {
+    if (input.verbose) console.log('get card', { issue, owner: this.owner, projectNumber: this.number })
+
     const data = await graphql<ProjectCardForIssueQuery>({
       query: Project.q.get,
       variables: {
