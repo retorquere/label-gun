@@ -3,7 +3,7 @@ import { context, getOctokit } from '@actions/github'
 import { graphql } from '@octokit/graphql'
 import { RequestError } from '@octokit/request-error'
 import { Issue, IssueComment, ProjectsV2Item } from '@octokit/webhooks-types'
-import { ProjectV2FieldsQuery, ProjectV2FieldsQueryVariables } from './types'
+import { OrgProjectV2FieldsQuery, UserProjectV2FieldsQuery } from './types'
 import { CreateCardMutation, ProjectCardForIssueQuery, UpdateCardMutation } from './types'
 
 const sender: string = context.payload.sender?.login || ''
@@ -107,7 +107,7 @@ const Project = new class {
   async load() {
     if (!input.project.url) return
 
-    const data = await graphql<ProjectV2FieldsQuery>(Project.q.fields[this.type], {
+    const data = await graphql<UserProjectV2FieldsQuery | OrgProjectV2FieldsQuery>(Project.q.fields[this.type], {
       owner: this.owner,
       projectNumber: this.number,
       headers: {
@@ -115,21 +115,25 @@ const Project = new class {
       },
     })
     const project = data?.owner?.projectV2
-    if (!project) throw new Error(`${input.project.url} not found`)
+    if (!project) throw new Error(`project ${JSON.stringify(input.project.url)} not found`)
     this.id = project.id
 
     const fields = project.fields
-    if (!fields) throw new Error(`${input.project.url} not found`)
+    if (!fields) throw new Error(`fields for ${JSON.stringify(input.project.url)} not found`)
 
     for (const [field, label] of Object.entries(input.project.field)) {
+      if (!label) continue
+
       const pf = fields.nodes?.find(f => f && f.id && f.name && f.name === label)
-      if (!pf) throw new Error(`${label} not found`)
+      if (!pf) throw new Error(`${field} label ${JSON.stringify(label)} not found`)
       this.field[field] = pf.id
 
       if (pf.__typename === 'ProjectV2SingleSelectField' && field === 'status') {
         for (const [state, name] of Object.entries(input.project.state)) {
+          if (!name) continue
+
           const _ = pf.options.find(o => o.name === name)
-          if (!_) throw new Error(`${name} not found`)
+          if (!_) throw new Error(`card state ${JSON.stringify(name)} not found`)
           this.state[state] = _.id
         }
       }

@@ -23772,14 +23772,14 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   // src/get/user-project-fields.graphql
   var require_user_project_fields = __commonJS({
     "src/get/user-project-fields.graphql"(exports, module) {
-      module.exports = "query ProjectV2Fields($owner: String!, $projectNumber: Int!) {\n  owner: user(login: $owner) {\n    projectV2(number: $projectNumber) {\n      id\n      ... on ProjectV2 {\n        fields(first: 100) {\n          nodes {\n            __typename\n            ... on ProjectV2FieldCommon { id name dataType }\n            ... on ProjectV2SingleSelectField { options { id name } }\n          }\n        }\n      }\n    }\n  }\n}\n";
+      module.exports = "query OrgProjectV2Fields($owner: String!, $projectNumber: Int!) {\n  owner: user(login: $owner) {\n    projectV2(number: $projectNumber) {\n      id\n      ... on ProjectV2 {\n        fields(first: 100) {\n          nodes {\n            __typename\n            ... on ProjectV2FieldCommon { id name dataType }\n            ... on ProjectV2SingleSelectField { options { id name } }\n          }\n        }\n      }\n    }\n  }\n}\n";
     }
   });
 
   // src/get/org-project-fields.graphql
   var require_org_project_fields = __commonJS({
     "src/get/org-project-fields.graphql"(exports, module) {
-      module.exports = "query OrgProjectV2Fields($owner: String!, $projectNumber: Int!) {\n  owner: organization(login: $owner) {\n    projectV2(number: $projectNumber) {\n      id\n      ... on ProjectV2 {\n        fields(first: 100) {\n          nodes {\n            __typename\n            ... on ProjectV2FieldCommon { id name dataType }\n            ... on ProjectV2SingleSelectField { options { id name } }\n          }\n        }\n      }\n    }\n  }\n}\n";
+      module.exports = "query UserProjectV2Fields($owner: String!, $projectNumber: Int!) {\n  owner: organization(login: $owner) {\n    projectV2(number: $projectNumber) {\n      id\n      ... on ProjectV2 {\n        fields(first: 100) {\n          nodes {\n            __typename\n            ... on ProjectV2FieldCommon { id name dataType }\n            ... on ProjectV2SingleSelectField { options { id name } }\n          }\n        }\n      }\n    }\n  }\n}\n";
     }
   });
 
@@ -23943,18 +23943,20 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         }
       });
       const project = data?.owner?.projectV2;
-      if (!project) throw new Error(`${input.project.url} not found`);
+      if (!project) throw new Error(`project ${JSON.stringify(input.project.url)} not found`);
       this.id = project.id;
       const fields = project.fields;
-      if (!fields) throw new Error(`${input.project.url} not found`);
+      if (!fields) throw new Error(`fields for ${JSON.stringify(input.project.url)} not found`);
       for (const [field, label] of Object.entries(input.project.field)) {
+        if (!label) continue;
         const pf = fields.nodes?.find((f) => f && f.id && f.name && f.name === label);
-        if (!pf) throw new Error(`${label} not found`);
+        if (!pf) throw new Error(`${field} label ${JSON.stringify(label)} not found`);
         this.field[field] = pf.id;
         if (pf.__typename === "ProjectV2SingleSelectField" && field === "status") {
           for (const [state, name] of Object.entries(input.project.state)) {
+            if (!name) continue;
             const _ = pf.options.find((o) => o.name === name);
-            if (!_) throw new Error(`${name} not found`);
+            if (!_) throw new Error(`card state ${JSON.stringify(name)} not found`);
             this.state[state] = _.id;
           }
         }
