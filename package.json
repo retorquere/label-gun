@@ -8,7 +8,7 @@
     "build": "npm run package",
     "format-check": "prettier --check **/*.ts",
     "lint": "dprint fmt src/*.ts && dprint check src/*.ts",
-    "prepackage": "graphql-codegen",
+    "prepackage": "graphql-codegen && npm run lint",
     "package": "tsc --noEmit && ./esbuild.js",
     "preversion": "npm start && git add -u",
     "postversion": "git push --follow-tags",

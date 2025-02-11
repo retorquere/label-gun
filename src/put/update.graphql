@@ -1,5 +1,5 @@
-mutation updateCard($projectId: ID!, $itemId: ID!, $statusFieldId: ID!, $status: String!, $startDateFieldId: ID!, $startDate: DateTime!, $endDateFieldId: ID!, $endDate: DateTime!) {
-  updateProjectV2ItemFieldValue(input: {
+mutation updateCard($projectId: ID!, $itemId: ID!, $statusFieldId: ID!, $status: String!, $startDateFieldId: ID!, $startDate: Date!, $endDateFieldId: ID!, $endDate: Date!) {
+  updateStatus: updateProjectV2ItemFieldValue(input: {
     projectId: $projectId,
     itemId: $itemId,
     fieldId: $statusFieldId,
@@ -9,7 +9,7 @@ mutation updateCard($projectId: ID!, $itemId: ID!, $statusFieldId: ID!, $status:
       id
     }
   }
-  updateProjectV2ItemFieldValue(input: {
+  updateStartDate: updateProjectV2ItemFieldValue(input: {
     projectId: $projectId,
     itemId: $itemId,
     fieldId: $startDateFieldId,
@@ -19,7 +19,7 @@ mutation updateCard($projectId: ID!, $itemId: ID!, $statusFieldId: ID!, $status:
       id
     }
   }
-  updateProjectV2ItemFieldValue(input: {
+  updateEndDate: updateProjectV2ItemFieldValue(input: {
     projectId: $projectId,
     itemId: $itemId,
     fieldId: $endDateFieldId,
