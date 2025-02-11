@@ -4,55 +4,69 @@ author: 'Emiliano Heyns'
 inputs:
   token:
     required: true
-    description: 'token to post to the issue list'
-  label.active:
-    required: false
-    description: 'only act on issues with this tag'
-    default: ''
-  label.exempt:
-    required: false
-    description: 'ignore issues with this tag'
-    default: ''
+    description: token to post to the issue list
+
   label.awaiting:
     required: true
-    description: 'label issues that require user feedback to proceed'
-    default: 'awaiting-user-feedback'
-  label.reopened:
-    required: false
-    description: 're-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators'
-    default: ''
+    description: label issues that require user feedback to proceed
+    default: awaiting-user-feedback
+
+  label.active:
+    description: only act on issues with this tag
+  label.exempt:
+    description: ignore issues with this tag
+
+
+  close.message:
+    description: when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
+  close.notified:
+    description: when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and label the issue to not show the message
+  close.label:
+    description: re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
+
   log.regex:
-    required: false
-    description: 'search for this regular expression to detect log ID'
-    default: ''
+    description: search for this regular expression to detect log ID
   log.message:
-    required: false
-    description: 'post this comment when log ID is missing'
-    default: ''
+    description: post this comment when log ID is missing
   log.label:
-    required: false
-    description: 'tag issues with missing log ID with this label'
-    default: ''
-  assign:
-    required: false
-    description: 'assign active issues to this contributor when running the action manually'
-    default: ''
+    description: tag issues with missing log ID with this label
+
+  user.assign:
+    description: assign active issues to this contributor when running the action manually
+  user.bots:
+    description: these user logins are actually bots
+
   verbose:
-    required: false
-    description: 'log activity'
-    default: ''
+    description: log activity
+
   issue.state:
-    required: false
-    description: 'when dispatching, run for this issue state'
+    description: when dispatching, run for this issue state
     default: 'all'
+
   project.token:
-    required: false
-    description: 'use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects'
-    default: ''
+    description: use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects
   project.url:
-    required: false
-    description: 'URL of project to update'
-    default: ''
+    description: URL of project to update
+
+  project.state.new:
+    description: project card state for open, unassigned issues
+    default: 'Backlog'
+  project.state.assigned:
+    description: project card state for open, assigned issues
+    default: 'In progress'
+  project.state.waiting:
+    description: project card state for open issues awaiting user feedback
+    default: 'Awaiting user input'
+
+  project.field.startDate:
+    description: project field to note start date
+    default: 'Start date'
+  project.field.endDate:
+    description: project field to note last active date
+    default: 'End date'
+  project.field.status:
+    description: project field for status
+    default: 'Status'
 runs:
   using: 'node20'
   main: 'dist/index.js'

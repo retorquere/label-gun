@@ -6,74 +6,21 @@ import { Issue, IssueComment, ProjectsV2Item } from '@octokit/webhooks-types'
 import { OrgProjectV2FieldsQuery, UserProjectV2FieldsQuery } from './types'
 import { CreateCardMutation, ProjectCardForIssueQuery, UpdateCardMutation } from './types'
 
+import { config } from './config'
+
 const sender: string = context.payload.sender?.login || ''
 const bot: boolean = context.payload.sender?.type === 'Bot'
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
-function getEnum(i: string, options: string[], dflt?: string): string {
-  if (!options.length) throw new Error(`enum ${i} needs options`)
-  if (!dflt) dflt = options[0]
-  if (!options.includes(dflt)) throw new Error(`Default ${JSON.stringify(dflt)} must be one of ${JSON.stringify(options)}`)
-  const o = core.getInput(i) || dflt
-  if (options.includes(o)) return o
-  const mapped = options.find(_ => _.toLowerCase() === o.toLowerCase())
-  if (mapped) return mapped
-  throw new Error(`Default ${JSON.stringify(o)} must be one of ${JSON.stringify(options)}`)
+function report(...msg: any[]) {
+  if (!config.verbose) return
+  console.log(...msg)
 }
 
-function getBool(i: string, dlft: 'true' | 'false' = 'false'): boolean {
-  return getEnum(i, ['false', 'true']) === 'true'
-}
+const octokit = getOctokit(config.token)
 
-function getString(i: string, required = false) {
-  const s = core.getInput(i) || ''
-  if (!s && required) throw new Error(`missing value for ${i}`)
-  return s
-}
-
-const input = {
-  label: {
-    exempt: getString('label.exempt'),
-    active: getString('label.active'),
-    awaiting: getString('label.awaiting'),
-    reopened: getString('label.reopened'),
-    merge: getString('label.merge'),
-  },
-
-  log: {
-    regex: core.getInput('log.regex') ? new RegExp(core.getInput('log.regex')) : (undefined as unknown as RegExp),
-    message: getString('log.message'),
-    label: getString('log.label'),
-  },
-
-  assignee: getString('assign'),
-  issue: {
-    state: getEnum('issue.state', ['all', 'open', 'closed']) as 'all' | 'open' | 'closed',
-  },
-
-  verbose: getBool('verbose', 'false'),
-
-  project: {
-    token: core.getInput('project.token') || core.getInput('token') || '',
-    url: getString('project.url'),
-    state: {
-      merge: getString('project.state.merge'),
-      assigned: getString('project.state.assigned'),
-      waiting: getString('project.state.waiting'),
-    },
-    field: {
-      startDate: core.getInput('project.field.startDate') || 'Start date',
-      endDate: core.getInput('project.field.endDate') || 'End date',
-      status: core.getInput('project.field.status') || 'Status',
-    },
-  },
-}
-
-const token = core.getInput('token', { required: true })
-const octokit = getOctokit(token)
-
-if (input.verbose) console.log(input)
+report('starting with', config)
 
 const Project = new class {
   public q = {
@@ -94,9 +41,9 @@ const Project = new class {
   public state: Record<string, string> = {}
 
   constructor() {
-    if (input.project.url) {
-      const m = input.project.url.match(/https:\/\/github.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/)
-      if (!m) throw new Error(`${input.project.url} is not a valid project URL`)
+    if (config.project.url) {
+      const m = config.project.url.match(/https:\/\/github.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/)
+      if (!m) throw new Error(`${config.project.url} is not a valid project URL`)
       const [, type, owner, number] = m
       this.type = type === 'users' ? 'user' : 'org'
       this.owner = owner
@@ -105,23 +52,23 @@ const Project = new class {
   }
 
   async load() {
-    if (!input.project.url) return
+    if (!config.project.url) return
 
     const data = await graphql<UserProjectV2FieldsQuery | OrgProjectV2FieldsQuery>(Project.q.fields[this.type], {
       owner: this.owner,
       projectNumber: this.number,
       headers: {
-        authorization: `Bearer ${input.project.token}`,
+        authorization: `Bearer ${config.project.token}`,
       },
     })
     const project = data?.owner?.projectV2
-    if (!project) throw new Error(`project ${JSON.stringify(input.project.url)} not found`)
+    if (!project) throw new Error(`project ${JSON.stringify(config.project.url)} not found`)
     this.id = project.id
 
     const fields = project.fields
-    if (!fields) throw new Error(`fields for ${JSON.stringify(input.project.url)} not found`)
+    if (!fields) throw new Error(`fields for ${JSON.stringify(config.project.url)} not found`)
 
-    for (const [field, label] of Object.entries(input.project.field)) {
+    for (const [field, label] of Object.entries(config.project.field)) {
       if (!label) continue
 
       const pf = fields.nodes?.find(f => f && f.id && f.name && f.name === label)
@@ -129,7 +76,7 @@ const Project = new class {
       this.field[field] = pf.id
 
       if (pf.__typename === 'ProjectV2SingleSelectField' && field === 'status') {
-        for (const [state, name] of Object.entries(input.project.state)) {
+        for (const [state, name] of Object.entries(config.project.state)) {
           if (!name) continue
 
           const _ = pf.options.find(o => o.name === name)
@@ -141,13 +88,13 @@ const Project = new class {
   }
 
   async get(issue: Issue): Promise<string> {
-    if (input.verbose) console.log('get card', { issue, owner: this.owner, projectNumber: this.number })
+    report('get card', { issue, owner: this.owner, projectNumber: this.number })
 
     const data = await graphql<ProjectCardForIssueQuery>(Project.q.get, {
       owner: this.owner,
       projectNumber: this.number,
       headers: {
-        authorization: `Bearer ${input.project.token}`,
+        authorization: `Bearer ${config.project.token}`,
       },
     })
 
@@ -163,10 +110,10 @@ const Project = new class {
       owner: this.id,
       contentId: issue.node_id,
       headers: {
-        authorization: `Bearer ${input.project.token}`,
+        authorization: `Bearer ${config.project.token}`,
       },
     })
-    if (!newCard?.addProjectV2ItemById?.item) throw new Error(`Failed to create card on project ${input.project.url}`)
+    if (!newCard?.addProjectV2ItemById?.item) throw new Error(`Failed to create card on project ${config.project.url}`)
     return newCard.addProjectV2ItemById.item.id
   }
 
@@ -181,7 +128,7 @@ const Project = new class {
       endDateFieldId: this.field.endDate,
       endDate: new Date().toISOString().replace(/T.*/, ''),
       headers: {
-        authorization: `Bearer ${input.project.token}`,
+        authorization: `Bearer ${config.project.token}`,
       },
     })
   }
@@ -193,15 +140,15 @@ const User = new class {
   async isCollaborator(username?: string, allowBot = false): Promise<boolean> {
     if (!username) return false
 
-    if (username.endsWith('[bot]') || (username === sender && bot)) {
-      if (input.verbose) console.log(username, 'is a bot, which we', allowBot ? 'consider' : 'do not consider', 'to be a contributor')
+    if (username.endsWith('[bot]') || config.user.bots.includes(username)) {
+      report(username, 'is a bot, which we', allowBot ? 'consider' : 'do not consider', 'to be a contributor')
       return allowBot
     }
 
     if (typeof this.#collaborator[username] !== 'boolean') {
       const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username })
       this.#collaborator[username] = user.permission === 'admin'
-      if (input.verbose) console.log(username, 'has permission', user.permission, 'and is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
+      report(username, 'has permission', user.permission, 'and is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
     }
     return this.#collaborator[username]
   }
@@ -209,22 +156,22 @@ const User = new class {
 
 async function update(issue: Issue, body: string): Promise<void> {
   if (!issue) throw new Error('No issue found')
-  if (input.verbose) console.log('processing issue', issue.number)
+  report('\n === processing issue', issue.number, '===')
 
   function $labeled(...name: string[]) {
     name = name.filter(_ => _)
     const labeled = (issue!.labels || []).find(label => name.includes(typeof label === 'string' ? label : (label?.name || '')))
-    if (input.verbose) console.log('testing whether issue is labeled', name, ':', labeled)
+    // report('testing whether issue is labeled', name, ':', labeled)
     return labeled
   }
   async function $label(name: string) {
     if (!name || $labeled(name)) return
-    if (input.verbose) console.log('labeling', name)
+    report('labeling', name)
     await octokit.rest.issues.addLabels({ owner, repo, issue_number: issue!.number, labels: [name] })
   }
   async function $unlabel(name: string) {
     if (!name || !$labeled(name)) return
-    if (input.verbose) console.log('unlabeling', name)
+    report('unlabeling', name)
     try {
       await octokit.rest.issues.removeLabel({ owner, repo, issue_number: issue!.number, name })
     }
@@ -250,76 +197,80 @@ async function update(issue: Issue, body: string): Promise<void> {
 
     if (active.user && active.owner) break
   }
-  const managed = active.user && !$labeled(input.label.exempt) && (!input.label.active || $labeled(input.label.active))
+  const managed = active.user && !$labeled(config.label.exempt) && (!config.label.active || $labeled(config.label.active))
 
-  if (input.verbose) {
-    console.log({
-      active,
-      managed,
-      label: {
-        exempt: $labeled(input.label.exempt),
-        active: $labeled(input.label.active),
-      },
-    })
-  }
+  report('entering issue handler', {
+    active,
+    managed,
+    label: {
+      exempt: $labeled(config.label.exempt),
+      active: $labeled(config.label.active),
+    },
+  })
 
-  if (input.assignee && issue.state === 'closed') {
+  if (config.user.assign && issue.state === 'closed') {
     const assignees = issue.assignees.map(assignee => assignee.login)
-    if (assignees.length) await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees })
+    if (assignees.length) {
+      report('unassigning closed issue')
+      await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees })
+    }
   }
-  else if (active.owner && input.assignee && !issue.assignees.length) {
-    const assignee = await User.isCollaborator(sender, false) ? sender : input.assignee
+  else if (active.owner && config.user.assign && !issue.assignees.length) {
+    const assignee = await User.isCollaborator(sender, false) ? sender : config.user.assign
+    report('assigning active issue to', assignee)
     await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [assignee] })
   }
 
-  if (input.verbose) console.log(sender, 'collaborator:', await User.isCollaborator(sender))
+  report('handling', await User.isCollaborator(sender) ? 'collaborator' : 'user', 'activity')
 
   // collab activity
   if (await User.isCollaborator(sender)) {
     if (context.payload.action != 'edited' && managed) {
-      await (issue.state === 'open' ? $label(input.label.awaiting) : $unlabel(input.label.awaiting))
+      await (issue.state === 'open' ? $label(config.label.awaiting) : $unlabel(config.label.awaiting))
     }
     return
   }
 
   // user activity
   if (managed && context.payload.action === 'closed') { // user closed the issue
-    if (issue.assignees.length && input.label.merge) await $label(input.label.merge)
+    if (issue.assignees.length && config.label.merge && !$labeled(config.label.reopened)) {
+      report('user closed active issue, labelling for merge')
+      await $label(config.label.merge)
+    }
   }
   else if (managed && context.eventName === 'issue_comment' && issue.state === 'closed') { // user commented on a closed issue
+    report('user commented on closed issue')
     await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
-    await $label(input.label.reopened)
+    await $label(config.label.reopened)
   }
 
-  await $unlabel(input.label.awaiting)
+  await $unlabel(config.label.awaiting)
 
-  if (managed && input.log.regex) {
-    let found = issue.state === 'closed' || !!body.match(input.log.regex)
-    if (!found && context.eventName === 'workflow_dispatch') {
-      found = !!([issue.body || '', ...(comments.map(comment => comment.body || ''))].find((b: string) => b.match(input.log.regex)))
+  if (managed && config.log.regex && context.eventName !== 'workflow_dispatch') {
+    if (issue.state === 'closed' || body.match(config.log.regex)) {
+      await $unlabel(config.log.label)
     }
-    if (found) {
-      await $unlabel(input.log.label)
-    }
-    else if (context.eventName === 'issues' && context.payload.action === 'opened' && !$labeled(input.log.label)) { // new issue, missing log
-      await $label(input.log.label)
-      if (input.log.message && sender) {
-        await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: input.log.message.replace('{{username}}', sender) })
+    else if (context.eventName === 'issues' && context.payload.action === 'opened') { // new issue, missing log
+      report('log missing')
+      await $label(config.log.label)
+      if (config.log.message && sender) {
+        await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: config.log.message.replace('{{username}}', sender) })
       }
     }
   }
 
-  if (input.project.url) {
+  if (config.project.url) {
     const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number })
     issue = data as unknown as Issue
 
     const card = await Project.get(issue)
 
     if (issue.state === 'closed') {
-      if (input.project.state.merge && $labeled(input.label.merge)) await Project.update(card, issue.created_at, Project.state.merge)
+      report('project: issue closed')
+      if (Project.state.merge && $labeled(config.label.merge)) await Project.update(card, issue.created_at, Project.state.merge)
     }
-    else if (issue.assignees.length) {
-      await Project.update(card, issue.created_at, $labeled(input.label.awaiting) ? Project.state.awaiting : Project.state.assigned)
+    else if (issue.assignees.length && Project.state.awaiting && Project.state.assigned && Project.state.new) {
+      await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? Project.state.awaiting : Project.state.assigned)
     }
   }
 }
@@ -361,7 +312,7 @@ async function run(): Promise<void> {
       }
 
       case 'workflow_dispatch': {
-        for (const issue of await octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: input.issue.state, per_page: 100 })) {
+        for (const issue of await octokit.paginate(octokit.rest.issues.listForRepo, { owner, repo, state: config.issue.state, per_page: 100 })) {
           await update(issue as unknown as Issue, '')
         }
         return
@@ -372,10 +323,10 @@ async function run(): Promise<void> {
       }
     }
 
-    if (input.verbose) console.log('finished')
+    report('finished')
   }
   catch (err) {
-    console.log(err)
+    console.error(err)
     process.exit(1)
   }
 }
