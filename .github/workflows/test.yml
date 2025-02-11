@@ -1,5 +1,6 @@
 name: 'build-test'
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -22,9 +23,9 @@ jobs:
           npm start
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
-    if: github.event_name == 'issues' || github.event_name == 'issue_comment'
+    if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v2
-      - uses: ./
+      - uses: retorquere/label-gun@project
         with:
           token: ${{ github.token }}
