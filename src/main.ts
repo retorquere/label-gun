@@ -104,14 +104,9 @@ const Project = new class {
   async load() {
     if (!input.project.url) return
 
-    const variables: ProjectV2FieldsQueryVariables = {
+    const data = await graphql<ProjectV2FieldsQuery>(Project.q.fields, {
       owner: this.owner,
       projectNumber: this.number,
-    }
-    if (input.verbose) console.log('load project', variables)
-    const data = await graphql<ProjectV2FieldsQuery>({
-      query: Project.q.fields,
-      variables,
       headers: {
         authorization: `Bearer ${input.project.token}`,
       },
@@ -141,12 +136,9 @@ const Project = new class {
   async get(issue: Issue): Promise<string> {
     if (input.verbose) console.log('get card', { issue, owner: this.owner, projectNumber: this.number })
 
-    const data = await graphql<ProjectCardForIssueQuery>({
-      query: Project.q.get,
-      variables: {
-        owner: this.owner,
-        projectNumber: this.number,
-      },
+    const data = await graphql<ProjectCardForIssueQuery>(Project.q.get, {
+      owner: this.owner,
+      projectNumber: this.number,
       headers: {
         authorization: `Bearer ${input.project.token}`,
       },
@@ -160,12 +152,9 @@ const Project = new class {
     ))
     if (card) return card.id
 
-    const newCard = await graphql<CreateCardMutation>({
-      query: Project.q.create,
-      variables: {
-        owner: this.id,
-        contentId: issue.node_id,
-      },
+    const newCard = await graphql<CreateCardMutation>(Project.q.create, {
+      owner: this.id,
+      contentId: issue.node_id,
       headers: {
         authorization: `Bearer ${input.project.token}`,
       },
@@ -175,18 +164,15 @@ const Project = new class {
   }
 
   async update(itemId: string, state: string, startDate: string) {
-    await graphql<UpdateCardMutation>({
-      query: Project.q.update,
-      variables: {
-        projectId: this.id,
-        itemId,
-        statusFieldId: this.field.status,
-        statusValue: this.state[state],
-        startDateFieldId: this.field.startDate,
-        startDate: startDate,
-        endDateFieldId: this.field.endDate,
-        endDate: new Date().toISOString().replace(/T.*/, ''),
-      },
+    await graphql<UpdateCardMutation>(Project.q.update, {
+      projectId: this.id,
+      itemId,
+      statusFieldId: this.field.status,
+      statusValue: this.state[state],
+      startDateFieldId: this.field.startDate,
+      startDate: startDate,
+      endDateFieldId: this.field.endDate,
+      endDate: new Date().toISOString().replace(/T.*/, ''),
       headers: {
         authorization: `Bearer ${input.project.token}`,
       },

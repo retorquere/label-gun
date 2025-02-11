@@ -23925,14 +23925,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
     async load() {
       if (!input.project.url) return;
-      const variables = {
+      const data = await (0, import_graphql.graphql)(Project.q.fields, {
         owner: this.owner,
-        projectNumber: this.number
-      };
-      if (input.verbose) console.log("load project", variables);
-      const data = await (0, import_graphql.graphql)({
-        query: Project.q.fields,
-        variables,
+        projectNumber: this.number,
         headers: {
           authorization: `Bearer ${input.project.token}`
         }
@@ -23957,24 +23952,18 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
     async get(issue) {
       if (input.verbose) console.log("get card", { issue, owner: this.owner, projectNumber: this.number });
-      const data = await (0, import_graphql.graphql)({
-        query: Project.q.get,
-        variables: {
-          owner: this.owner,
-          projectNumber: this.number
-        },
+      const data = await (0, import_graphql.graphql)(Project.q.get, {
+        owner: this.owner,
+        projectNumber: this.number,
         headers: {
           authorization: `Bearer ${input.project.token}`
         }
       });
       let card = data.repository?.issue?.projectItems.nodes?.find((node) => node && (node.project.owner.__typename === "Organization" || node.project.owner.__typename === "User") && node.project.owner.login == this.owner && node.project.number === this.number);
       if (card) return card.id;
-      const newCard = await (0, import_graphql.graphql)({
-        query: Project.q.create,
-        variables: {
-          owner: this.id,
-          contentId: issue.node_id
-        },
+      const newCard = await (0, import_graphql.graphql)(Project.q.create, {
+        owner: this.id,
+        contentId: issue.node_id,
         headers: {
           authorization: `Bearer ${input.project.token}`
         }
@@ -23983,18 +23972,15 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return newCard.addProjectV2ItemById.item.id;
     }
     async update(itemId, state, startDate) {
-      await (0, import_graphql.graphql)({
-        query: Project.q.update,
-        variables: {
-          projectId: this.id,
-          itemId,
-          statusFieldId: this.field.status,
-          statusValue: this.state[state],
-          startDateFieldId: this.field.startDate,
-          startDate,
-          endDateFieldId: this.field.endDate,
-          endDate: (/* @__PURE__ */ new Date()).toISOString().replace(/T.*/, "")
-        },
+      await (0, import_graphql.graphql)(Project.q.update, {
+        projectId: this.id,
+        itemId,
+        statusFieldId: this.field.status,
+        statusValue: this.state[state],
+        startDateFieldId: this.field.startDate,
+        startDate,
+        endDateFieldId: this.field.endDate,
+        endDate: (/* @__PURE__ */ new Date()).toISOString().replace(/T.*/, ""),
         headers: {
           authorization: `Bearer ${input.project.token}`
         }
