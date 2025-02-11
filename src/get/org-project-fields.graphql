@@ -1,0 +1,16 @@
+query OrgProjectV2Fields($owner: String!, $projectNumber: Int!) {
+  owner: organization(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      ... on ProjectV2 {
+        fields(first: 100) {
+          nodes {
+            __typename
+            ... on ProjectV2FieldCommon { id name dataType }
+            ... on ProjectV2SingleSelectField { options { id name } }
+          }
+        }
+      }
+    }
+  }
+}

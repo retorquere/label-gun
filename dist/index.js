@@ -23769,10 +23769,17 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
   });
 
-  // src/get/fields.graphql
-  var require_fields = __commonJS({
-    "src/get/fields.graphql"(exports, module) {
-      module.exports = "query ProjectV2Fields($owner: String!, $projectNumber: Int!) {\n  user: user(login: $owner) {\n    projectV2(number: $projectNumber) {\n      id\n      ... on ProjectV2 {\n        fields(first: 100) {\n          nodes {\n            __typename\n            ... on ProjectV2FieldCommon { id name dataType }\n            ... on ProjectV2SingleSelectField { options { id name } }\n          }\n        }\n      }\n    }\n  }\n  organization: organization(login: $owner) {\n    projectV2(number: $projectNumber) {\n      id\n      ... on ProjectV2 {\n        fields(first: 100) {\n          nodes {\n            __typename\n            ... on ProjectV2FieldCommon { id name dataType }\n            ... on ProjectV2SingleSelectField { options { id name } }\n          }\n        }\n      }\n    }\n  }\n}\n";
+  // src/get/user-project-fields.graphql
+  var require_user_project_fields = __commonJS({
+    "src/get/user-project-fields.graphql"(exports, module) {
+      module.exports = "query ProjectV2Fields($owner: String!, $projectNumber: Int!) {\n  owner: user(login: $owner) {\n    projectV2(number: $projectNumber) {\n      id\n      ... on ProjectV2 {\n        fields(first: 100) {\n          nodes {\n            __typename\n            ... on ProjectV2FieldCommon { id name dataType }\n            ... on ProjectV2SingleSelectField { options { id name } }\n          }\n        }\n      }\n    }\n  }\n}\n";
+    }
+  });
+
+  // src/get/org-project-fields.graphql
+  var require_org_project_fields = __commonJS({
+    "src/get/org-project-fields.graphql"(exports, module) {
+      module.exports = "query OrgProjectV2Fields($owner: String!, $projectNumber: Int!) {\n  owner: organization(login: $owner) {\n    projectV2(number: $projectNumber) {\n      id\n      ... on ProjectV2 {\n        fields(first: 100) {\n          nodes {\n            __typename\n            ... on ProjectV2FieldCommon { id name dataType }\n            ... on ProjectV2SingleSelectField { options { id name } }\n          }\n        }\n      }\n    }\n  }\n}\n";
     }
   });
 
@@ -23903,36 +23910,39 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   var Project = new class {
     constructor() {
       this.q = {
-        fields: require_fields(),
+        fields: {
+          user: require_user_project_fields(),
+          org: require_org_project_fields()
+        },
         get: require_card(),
         update: require_update(),
         create: require_create()
       };
-      this.id = "";
       this.owner = "";
-      this.type = "";
+      this.type = "org";
       this.number = 0;
+      this.id = "";
       this.field = {};
       this.state = {};
       if (input.project.url) {
         const m = input.project.url.match(/https:\/\/github.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
         if (!m) throw new Error(`${input.project.url} is not a valid project URL`);
         const [, type, owner2, number] = m;
-        this.type = type === "users" ? "user" : "organization";
+        this.type = type === "users" ? "user" : "org";
         this.owner = owner2;
         this.number = parseInt(number);
       }
     }
     async load() {
       if (!input.project.url) return;
-      const data = await (0, import_graphql.graphql)(Project.q.fields, {
+      const data = await (0, import_graphql.graphql)(Project.q.fields[this.type], {
         owner: this.owner,
         projectNumber: this.number,
         headers: {
           authorization: `Bearer ${input.project.token}`
         }
       });
-      const project = (data.user || data.organization)?.projectV2;
+      const project = data?.owner?.projectV2;
       if (!project) throw new Error(`${input.project.url} not found`);
       this.id = project.id;
       const fields = project.fields;

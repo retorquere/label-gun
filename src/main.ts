@@ -77,16 +77,19 @@ if (input.verbose) console.log(input)
 
 const Project = new class {
   public q = {
-    fields: require('./get/fields.graphql'),
+    fields: {
+      user: require('./get/user-project-fields.graphql'),
+      org: require('./get/org-project-fields.graphql'),
+    },
     get: require('./get/card.graphql'),
     update: require('./put/update.graphql'),
     create: require('./put/create.graphql'),
   }
 
-  public id: string = ''
   public owner: string = ''
-  public type: 'user' | 'organization' | '' = ''
+  public type: 'user' | 'org' = 'org'
   public number: number = 0
+  public id: string = ''
   public field: Record<string, string> = {}
   public state: Record<string, string> = {}
 
@@ -95,7 +98,7 @@ const Project = new class {
       const m = input.project.url.match(/https:\/\/github.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/)
       if (!m) throw new Error(`${input.project.url} is not a valid project URL`)
       const [, type, owner, number] = m
-      this.type = type === 'users' ? 'user' : 'organization'
+      this.type = type === 'users' ? 'user' : 'org'
       this.owner = owner
       this.number = parseInt(number)
     }
@@ -104,14 +107,14 @@ const Project = new class {
   async load() {
     if (!input.project.url) return
 
-    const data = await graphql<ProjectV2FieldsQuery>(Project.q.fields, {
+    const data = await graphql<ProjectV2FieldsQuery>(Project.q.fields[this.type], {
       owner: this.owner,
       projectNumber: this.number,
       headers: {
         authorization: `Bearer ${input.project.token}`,
       },
     })
-    const project = (data.user || data.organization)?.projectV2
+    const project = data?.owner?.projectV2
     if (!project) throw new Error(`${input.project.url} not found`)
     this.id = project.id
 
