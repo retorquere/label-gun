@@ -24,7 +24,7 @@ function getBool(v: string | undefined) {
 }
 
 function getState(): 'all' | 'closed' | 'open' {
-  const state = core.getInput('state') || 'all'
+  const state = core.getInput('issue.state') || 'all'
   switch (state) {
     case 'all':
     case 'closed':
@@ -38,8 +38,9 @@ function getState(): 'all' | 'closed' | 'open' {
 
 const input = {
   label: {
-    awaiting: core.getInput('label.awaiting') || '',
     exempt: core.getInput('label.exempt') || '',
+    active: core.getInput('label.active') || '',
+    awaiting: core.getInput('label.awaiting') || '',
     reopened: core.getInput('label.reopened') || '',
     merge: core.getInput('label.merge') || '',
   },
@@ -257,9 +258,18 @@ async function update(issue: Issue, body: string): Promise<void> {
 
     if (active.user && active.owner) break
   }
-  const managed = active.user && !$labeled(input.label.exempt)
+  const managed = active.user && !$labeled(input.label.exempt) && (!input.label.active || $labeled(input.label.active))
 
-  if (input.verbose) console.log({ active, managed, exempt: $labeled(input.label.exempt) })
+  if (input.verbose) {
+    console.log({
+      active,
+      managed,
+      label: {
+        exempt: $labeled(input.label.exempt),
+        active: $labeled(input.label.active),
+      },
+    })
+  }
 
   if (input.assignee && issue.state === 'closed') {
     const assignees = issue.assignees.map(assignee => assignee.login)

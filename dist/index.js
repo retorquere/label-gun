@@ -23857,7 +23857,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     throw new Error(`${JSON.stringify(core.getInput("verbose"))} is not a boolean`);
   }
   function getState() {
-    const state = core.getInput("state") || "all";
+    const state = core.getInput("issue.state") || "all";
     switch (state) {
       case "all":
       case "closed":
@@ -23870,8 +23870,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
   var input = {
     label: {
-      awaiting: core.getInput("label.awaiting") || "",
       exempt: core.getInput("label.exempt") || "",
+      active: core.getInput("label.active") || "",
+      awaiting: core.getInput("label.awaiting") || "",
       reopened: core.getInput("label.reopened") || "",
       merge: core.getInput("label.merge") || ""
     },
@@ -24055,8 +24056,17 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       }
       if (active.user && active.owner) break;
     }
-    const managed = active.user && !$labeled(input.label.exempt);
-    if (input.verbose) console.log({ active, managed, exempt: $labeled(input.label.exempt) });
+    const managed = active.user && !$labeled(input.label.exempt) && (!input.label.active || $labeled(input.label.active));
+    if (input.verbose) {
+      console.log({
+        active,
+        managed,
+        label: {
+          exempt: $labeled(input.label.exempt),
+          active: $labeled(input.label.active)
+        }
+      });
+    }
     if (input.assignee && issue.state === "closed") {
       const assignees = issue.assignees.map((assignee) => assignee.login);
       if (assignees.length) await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees });

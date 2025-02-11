@@ -28,3 +28,12 @@ jobs:
       - uses: ./
         with:
           token: ${{ github.token }}
+          label.awaiting: awaiting-user-input
+          label.reopened: reopened
+          log.regex: abc-def
+          log.message: please post a log ID
+          log.label: log-required
+          assign: retorquere
+          verbose: true
+          project.token: ${{ secrets.PAT }}
+          project.url: https://github.com/users/retorquere/projects/5

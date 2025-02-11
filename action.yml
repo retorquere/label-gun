@@ -41,7 +41,7 @@ inputs:
     required: false
     description: 'log activity'
     default: ''
-  state:
+  issue.state:
     required: false
     description: 'when dispatching, run for this issue state'
     default: 'all'
