@@ -19786,10 +19786,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         (0, command_1.issueCommand)("save-state", { name }, (0, utils_1.toCommandValue)(value));
       }
       exports.saveState = saveState;
-      function getState2(name) {
+      function getState(name) {
         return process.env[`STATE_${name}`] || "";
       }
-      exports.getState = getState2;
+      exports.getState = getState;
       function getIDToken(aud) {
         return __awaiter(this, void 0, void 0, function* () {
           return yield oidc_utils_1.OidcClient.getIDToken(aud);
@@ -23846,58 +23846,54 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   var bot = import_github.context.payload.sender?.type === "Bot";
   var owner = import_github.context.payload.repository?.owner?.login || "";
   var repo = import_github.context.payload.repository?.name || "";
-  if (core.getInput("verbose") && !core.getInput("verbose").match(/^(true|false)$/i)) throw new Error(`Unexpected verbose value ${core.getInput("verbose")}`);
-  function getBool(v) {
-    switch (v || "true") {
-      case "true":
-        return true;
-      case "false":
-        return false;
-    }
-    throw new Error(`${JSON.stringify(core.getInput("verbose"))} is not a boolean`);
+  function getEnum(i, options, dflt) {
+    if (!options.length) throw new Error(`enum ${i} needs options`);
+    if (!dflt) dflt = options[0];
+    if (!options.includes(dflt)) throw new Error(`Default ${JSON.stringify(dflt)} must be one of ${JSON.stringify(options)}`);
+    const o = core.getInput(i) || dflt;
+    if (options.includes(o)) return o;
+    const mapped = options.find((_) => _.toLowerCase() === o.toLowerCase());
+    if (mapped) return mapped;
+    throw new Error(`Default ${JSON.stringify(o)} must be one of ${JSON.stringify(options)}`);
   }
-  function getState() {
-    const state = core.getInput("issue.state") || "all";
-    switch (state) {
-      case "all":
-      case "closed":
-      case "open":
-        return state;
-      default:
-        console.log(`invalid state ${JSON.stringify(state)}, assuming "all"`);
-        return "all";
-    }
+  function getBool(i, dlft = "false") {
+    return getEnum(i, ["false", "true"]) === "true";
+  }
+  function getString(i, required = false) {
+    const s = core.getInput(i) || "";
+    if (!s && required) throw new Error(`missing value for ${i}`);
+    return s;
   }
   var input = {
     label: {
-      exempt: core.getInput("label.exempt") || "",
-      active: core.getInput("label.active") || "",
-      awaiting: core.getInput("label.awaiting") || "",
-      reopened: core.getInput("label.reopened") || "",
-      merge: core.getInput("label.merge") || ""
+      exempt: getString("label.exempt"),
+      active: getString("label.active"),
+      awaiting: getString("label.awaiting"),
+      reopened: getString("label.reopened"),
+      merge: getString("label.merge")
     },
     log: {
       regex: core.getInput("log.regex") ? new RegExp(core.getInput("log.regex")) : void 0,
-      message: core.getInput("log.message"),
-      label: core.getInput("log.label") || ""
+      message: getString("log.message"),
+      label: getString("log.label")
     },
-    assignee: core.getInput("assign"),
+    assignee: getString("assign"),
     issue: {
-      state: getState()
+      state: getEnum("issue.state", ["all", "open", "closed"])
     },
-    verbose: getBool(core.getInput("verbose")),
+    verbose: getBool("verbose", "false"),
     project: {
       token: core.getInput("project.token") || core.getInput("token") || "",
-      url: core.getInput("project.url") || "",
+      url: getString("project.url"),
       state: {
-        merge: core.getInput("project.state.merge") || "",
-        assigned: core.getInput("project.state.assigned") || "",
-        waiting: core.getInput("project.state.waiting") || ""
+        merge: getString("project.state.merge"),
+        assigned: getString("project.state.assigned"),
+        waiting: getString("project.state.waiting")
       },
       field: {
         startDate: core.getInput("project.field.startDate") || "Start date",
         endDate: core.getInput("project.field.endDate") || "End date",
-        status: core.getInput("project.field.endDatetatus") || "Status"
+        status: core.getInput("project.field.status") || "Status"
       }
     }
   };
@@ -23933,6 +23929,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         owner: this.owner,
         projectNumber: this.number
       };
+      if (input.verbose) console.log("load project", variables);
       const data = await (0, import_graphql.graphql)({
         query: Project.q.fields,
         variables,
@@ -23959,6 +23956,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       }
     }
     async get(issue) {
+      if (input.verbose) console.log("get card", { issue, owner: this.owner, projectNumber: this.number });
       const data = await (0, import_graphql.graphql)({
         query: Project.q.get,
         variables: {

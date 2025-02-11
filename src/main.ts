@@ -11,65 +11,61 @@ const bot: boolean = context.payload.sender?.type === 'Bot'
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
-if (core.getInput('verbose') && !(core.getInput('verbose').match(/^(true|false)$/i))) throw new Error(`Unexpected verbose value ${core.getInput('verbose')}`)
-
-function getBool(v: string | undefined) {
-  switch (v || 'true') {
-    case 'true':
-      return true
-    case 'false':
-      return false
-  }
-  throw new Error(`${JSON.stringify(core.getInput('verbose'))} is not a boolean`)
+function getEnum(i: string, options: string[], dflt?: string): string {
+  if (!options.length) throw new Error(`enum ${i} needs options`)
+  if (!dflt) dflt = options[0]
+  if (!options.includes(dflt)) throw new Error(`Default ${JSON.stringify(dflt)} must be one of ${JSON.stringify(options)}`)
+  const o = core.getInput(i) || dflt
+  if (options.includes(o)) return o
+  const mapped = options.find(_ => _.toLowerCase() === o.toLowerCase())
+  if (mapped) return mapped
+  throw new Error(`Default ${JSON.stringify(o)} must be one of ${JSON.stringify(options)}`)
 }
 
-function getState(): 'all' | 'closed' | 'open' {
-  const state = core.getInput('issue.state') || 'all'
-  switch (state) {
-    case 'all':
-    case 'closed':
-    case 'open':
-      return state
-    default:
-      console.log(`invalid state ${JSON.stringify(state)}, assuming "all"`)
-      return 'all'
-  }
+function getBool(i: string, dlft: 'true' | 'false' = 'false'): boolean {
+  return getEnum(i, ['false', 'true']) === 'true'
+}
+
+function getString(i: string, required = false) {
+  const s = core.getInput(i) || ''
+  if (!s && required) throw new Error(`missing value for ${i}`)
+  return s
 }
 
 const input = {
   label: {
-    exempt: core.getInput('label.exempt') || '',
-    active: core.getInput('label.active') || '',
-    awaiting: core.getInput('label.awaiting') || '',
-    reopened: core.getInput('label.reopened') || '',
-    merge: core.getInput('label.merge') || '',
+    exempt: getString('label.exempt'),
+    active: getString('label.active'),
+    awaiting: getString('label.awaiting'),
+    reopened: getString('label.reopened'),
+    merge: getString('label.merge'),
   },
 
   log: {
     regex: core.getInput('log.regex') ? new RegExp(core.getInput('log.regex')) : (undefined as unknown as RegExp),
-    message: core.getInput('log.message'),
-    label: core.getInput('log.label') || '',
+    message: getString('log.message'),
+    label: getString('log.label'),
   },
 
-  assignee: core.getInput('assign'),
+  assignee: getString('assign'),
   issue: {
-    state: getState(),
+    state: getEnum('issue.state', ['all', 'open', 'closed']) as 'all' | 'open' | 'closed',
   },
 
-  verbose: getBool(core.getInput('verbose')),
+  verbose: getBool('verbose', 'false'),
 
   project: {
     token: core.getInput('project.token') || core.getInput('token') || '',
-    url: core.getInput('project.url') || '',
+    url: getString('project.url'),
     state: {
-      merge: core.getInput('project.state.merge') || '',
-      assigned: core.getInput('project.state.assigned') || '',
-      waiting: core.getInput('project.state.waiting') || '',
+      merge: getString('project.state.merge'),
+      assigned: getString('project.state.assigned'),
+      waiting: getString('project.state.waiting'),
     },
     field: {
       startDate: core.getInput('project.field.startDate') || 'Start date',
       endDate: core.getInput('project.field.endDate') || 'End date',
-      status: core.getInput('project.field.endDatetatus') || 'Status',
+      status: core.getInput('project.field.status') || 'Status',
     },
   },
 }
