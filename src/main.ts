@@ -112,6 +112,7 @@ const Project = new class {
       owner: this.owner,
       projectNumber: this.number,
     }
+    if (input.verbose) console.log('load project', variables)
     const data = await graphql<ProjectV2FieldsQuery>({
       query: Project.q.fields,
       variables,
