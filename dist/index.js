@@ -23883,8 +23883,6 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     close: {
       // when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
       message: core.getInput("close.message"),
-      // when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and label the issue to not show the message
-      notified: core.getInput("close.notified"),
       // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
       label: core.getInput("close.label")
     },
@@ -23900,7 +23898,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       // assign active issues to this contributor when running the action manually
       assign: core.getInput("user.assign"),
       // these user logins are actually bots
-      bots: core.getInput("user.bots")
+      bots: core.getInput("user.bots").split(",").map((_) => _.trim()).filter((_) => _)
     },
     // log activity
     verbose: getBool("verbose", "false"),
@@ -23923,9 +23921,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       },
       field: {
         // default: "Start date", project field to note start date
-        startDate: core.getInput("project.field.startDate"),
+        startDate: core.getInput("project.field.start-date"),
         // default: "End date", project field to note last active date
-        endDate: core.getInput("project.field.endDate"),
+        endDate: core.getInput("project.field.end-date"),
         // default: "Status", project field for status
         status: core.getInput("project.field.status")
       }
