@@ -43,10 +43,10 @@ inputs:
     description: when dispatching, run for this issue state
     default: 'all'
 
-  project.token:
-    description: use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects
   project.url:
     description: URL of project to update
+  project.token:
+    description: use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects
 
   project.state.new:
     description: project card state for open, unassigned issues
