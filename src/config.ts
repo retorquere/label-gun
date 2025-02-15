@@ -1,10 +1,9 @@
 import * as core from '@actions/core'
 
-function getEnum(i: string, options: string[], dflt?: string): string {
+function getEnum(i: string, options: string[]): string {
+  options = options.filter(_ => _)
   if (!options.length) throw new Error(`enum ${i} needs options`)
-  if (!dflt) dflt = options[0]
-  if (!options.includes(dflt)) throw new Error(`Default ${JSON.stringify(dflt)} must be one of ${JSON.stringify(options)}`)
-  const o = core.getInput(i) || dflt
+  const o = core.getInput(i) || options[0]
   if (options.includes(o)) return o
   const mapped = options.find(_ => _.toLowerCase() === o.toLowerCase())
   if (mapped) return mapped
@@ -28,14 +27,14 @@ export const config = {
 
     // ignore issues with this tag
     exempt: core.getInput('label.exempt'),
+
+    // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
+    reopened: core.getInput('label.reopened'),
   },
 
   close: {
     // when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
     message: core.getInput('close.message'),
-
-    // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
-    label: core.getInput('close.label'),
   },
 
   log: {
@@ -71,26 +70,28 @@ export const config = {
     // use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects
     token: core.getInput('project.token') || core.getInput('token'),
 
-    state: {
-      // default: "Backlog", project card state for open, unassigned issues
-      new: core.getInput('project.state.new'),
+    card: {
+      status: {
+        // default: "Backlog", project card state for open, unassigned issues
+        new: core.getInput('project.card.status.new'),
 
-      // default: "In progress", project card state for open, assigned issues
-      assigned: core.getInput('project.state.assigned'),
+        // default: "In progress", project card state for open, assigned issues
+        assigned: core.getInput('project.card.status.assigned'),
 
-      // default: "Awaiting user input", project card state for open issues awaiting user feedback
-      waiting: core.getInput('project.state.waiting'),
-    },
+        // default: "Awaiting user input", project card state for open issues awaiting user feedback
+        awaiting: core.getInput('project.card.status.awaiting'),
+      },
 
-    field: {
-      // default: "Start date", project field to note start date
-      startDate: core.getInput('project.field.start-date'),
+      field: {
+        // default: "Start date", project field to note start date
+        startDate: core.getInput('project.card.field.start-date'),
 
-      // default: "End date", project field to note last active date
-      endDate: core.getInput('project.field.end-date'),
+        // default: "End date", project field to note last active date
+        endDate: core.getInput('project.card.field.end-date'),
 
-      // default: "Status", project field for status
-      status: core.getInput('project.field.status'),
+        // default: "Status", project field for status
+        status: core.getInput('project.card.field.status'),
+      },
     },
   },
 }

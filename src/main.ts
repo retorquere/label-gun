@@ -22,6 +22,9 @@ const octokit = getOctokit(config.token)
 
 report('starting with', config)
 
+type Field = keyof typeof config.project.card.field
+type Status = keyof typeof config.project.card.status
+
 const Project = new class {
   public q = {
     fields: {
@@ -37,8 +40,8 @@ const Project = new class {
   public type: 'user' | 'org' = 'org'
   public number: number = 0
   public id: string = ''
-  public field: Record<string, string> = {}
-  public state: Record<string, string> = {}
+  public field: Partial<Record<Field, string>> = {}
+  public status: Partial<Record<Status, string>> = {}
 
   constructor() {
     if (config.project.url) {
@@ -68,20 +71,20 @@ const Project = new class {
     const fields = project.fields
     if (!fields) throw new Error(`fields for ${JSON.stringify(config.project.url)} not found`)
 
-    for (const [field, label] of Object.entries(config.project.field)) {
+    for (const [field, label] of Object.entries(config.project.card.field)) {
       if (!label) continue
 
       const pf = fields.nodes?.find(f => f && f.id && f.name && f.name === label)
       if (!pf) throw new Error(`${field} label ${JSON.stringify(label)} not found`)
-      this.field[field] = pf.id
+      this.field[field as Field] = pf.id
 
       if (pf.__typename === 'ProjectV2SingleSelectField' && field === 'status') {
-        for (const [state, name] of Object.entries(config.project.state)) {
+        for (const [status, name] of Object.entries(config.project.card.status)) {
           if (!name) continue
 
           const _ = pf.options.find(o => o.name === name)
-          if (!_) throw new Error(`card state ${JSON.stringify(name)} not found`)
-          this.state[state] = _.id
+          if (!_) throw new Error(`card status ${JSON.stringify(name)} not found`)
+          this.status[status as Status] = _.id
         }
       }
     }
@@ -117,12 +120,12 @@ const Project = new class {
     return newCard.addProjectV2ItemById.item.id
   }
 
-  async update(itemId: string, state: string, startDate: string) {
+  async update(itemId: string, startDate: string, status: Status) {
     await graphql<UpdateCardMutation>(Project.q.update, {
       projectId: this.id,
       itemId,
       statusFieldId: this.field.status,
-      statusValue: this.state[state],
+      statusValue: this.status[status],
       startDateFieldId: this.field.startDate,
       startDate: startDate,
       endDateFieldId: this.field.endDate,
@@ -233,9 +236,10 @@ async function update(issue: Issue, body: string): Promise<void> {
 
   // user activity
   if (managed && context.payload.action === 'closed') { // user closed the issue
-    if (issue.assignees.length && config.label.merge && !$labeled(config.label.reopened)) {
-      report('user closed active issue, labelling for merge')
-      await $label(config.label.merge)
+    if (issue.assignees.length && !$labeled(config.label.reopened)) {
+      report('user closed active issue, reopen for merge')
+      await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: config.close.message.replace('{{username}}', sender) })
+      await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
     }
   }
   else if (managed && context.eventName === 'issue_comment' && issue.state === 'closed') { // user commented on a closed issue
@@ -263,14 +267,9 @@ async function update(issue: Issue, body: string): Promise<void> {
     const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number })
     issue = data as unknown as Issue
 
-    const card = await Project.get(issue)
-
-    if (issue.state === 'closed') {
-      report('project: issue closed')
-      if (Project.state.merge && $labeled(config.label.merge)) await Project.update(card, issue.created_at, Project.state.merge)
-    }
-    else if (issue.assignees.length && Project.state.awaiting && Project.state.assigned && Project.state.new) {
-      await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? Project.state.awaiting : Project.state.assigned)
+    if (issue.state === 'open' && Project.status.awaiting && Project.status.assigned && Project.status.new) {
+      const card = await Project.get(issue)
+      await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? 'awaiting' : (issue.assignees.length ? 'assigned' : 'new'))
     }
   }
 }

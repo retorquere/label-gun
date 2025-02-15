@@ -15,12 +15,11 @@ inputs:
     description: only act on issues with this tag
   label.exempt:
     description: ignore issues with this tag
-
+  label.reopened:
+    description: re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
 
   close.message:
     description: when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
-  close.label:
-    description: re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
 
   log.regex:
     description: search for this regular expression to detect log ID
@@ -46,23 +45,23 @@ inputs:
   project.token:
     description: use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects
 
-  project.state.new:
+  project.card.status.new:
     description: project card state for open, unassigned issues
     default: 'Backlog'
-  project.state.assigned:
+  project.card.status.assigned:
     description: project card state for open, assigned issues
     default: 'In progress'
-  project.state.waiting:
+  project.card.status.awaiting:
     description: project card state for open issues awaiting user feedback
     default: 'Awaiting user input'
 
-  project.field.start-date:
+  project.card.field.start-date:
     description: project field to note start date
     default: 'Start date'
-  project.field.end-date:
+  project.card.field.end-date:
     description: project field to note last active date
     default: 'End date'
-  project.field.status:
+  project.card.field.status:
     description: project field for status
     default: 'Status'
 runs:

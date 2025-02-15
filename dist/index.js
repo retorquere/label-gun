@@ -23856,11 +23856,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 
   // src/config.ts
   var core = __toESM(require_core());
-  function getEnum(i, options, dflt) {
+  function getEnum(i, options) {
+    options = options.filter((_) => _);
     if (!options.length) throw new Error(`enum ${i} needs options`);
-    if (!dflt) dflt = options[0];
-    if (!options.includes(dflt)) throw new Error(`Default ${JSON.stringify(dflt)} must be one of ${JSON.stringify(options)}`);
-    const o = core.getInput(i) || dflt;
+    const o = core.getInput(i) || options[0];
     if (options.includes(o)) return o;
     const mapped = options.find((_) => _.toLowerCase() === o.toLowerCase());
     if (mapped) return mapped;
@@ -23878,13 +23877,13 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       // only act on issues with this tag
       active: core.getInput("label.active"),
       // ignore issues with this tag
-      exempt: core.getInput("label.exempt")
+      exempt: core.getInput("label.exempt"),
+      // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
+      reopened: core.getInput("label.reopened")
     },
     close: {
       // when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
-      message: core.getInput("close.message"),
-      // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
-      label: core.getInput("close.label")
+      message: core.getInput("close.message")
     },
     log: {
       // search for this regular expression to detect log ID
@@ -23911,21 +23910,23 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       url: core.getInput("project.url"),
       // use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects
       token: core.getInput("project.token") || core.getInput("token"),
-      state: {
-        // default: "Backlog", project card state for open, unassigned issues
-        new: core.getInput("project.state.new"),
-        // default: "In progress", project card state for open, assigned issues
-        assigned: core.getInput("project.state.assigned"),
-        // default: "Awaiting user input", project card state for open issues awaiting user feedback
-        waiting: core.getInput("project.state.waiting")
-      },
-      field: {
-        // default: "Start date", project field to note start date
-        startDate: core.getInput("project.field.start-date"),
-        // default: "End date", project field to note last active date
-        endDate: core.getInput("project.field.end-date"),
-        // default: "Status", project field for status
-        status: core.getInput("project.field.status")
+      card: {
+        status: {
+          // default: "Backlog", project card state for open, unassigned issues
+          new: core.getInput("project.card.status.new"),
+          // default: "In progress", project card state for open, assigned issues
+          assigned: core.getInput("project.card.status.assigned"),
+          // default: "Awaiting user input", project card state for open issues awaiting user feedback
+          awaiting: core.getInput("project.card.status.awaiting")
+        },
+        field: {
+          // default: "Start date", project field to note start date
+          startDate: core.getInput("project.card.field.start-date"),
+          // default: "End date", project field to note last active date
+          endDate: core.getInput("project.card.field.end-date"),
+          // default: "Status", project field for status
+          status: core.getInput("project.card.field.status")
+        }
       }
     }
   };
@@ -23957,7 +23958,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       this.number = 0;
       this.id = "";
       this.field = {};
-      this.state = {};
+      this.status = {};
       if (config.project.url) {
         const m = config.project.url.match(/https:\/\/github.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
         if (!m) throw new Error(`${config.project.url} is not a valid project URL`);
@@ -23981,17 +23982,17 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       this.id = project.id;
       const fields = project.fields;
       if (!fields) throw new Error(`fields for ${JSON.stringify(config.project.url)} not found`);
-      for (const [field, label] of Object.entries(config.project.field)) {
+      for (const [field, label] of Object.entries(config.project.card.field)) {
         if (!label) continue;
         const pf = fields.nodes?.find((f) => f && f.id && f.name && f.name === label);
         if (!pf) throw new Error(`${field} label ${JSON.stringify(label)} not found`);
         this.field[field] = pf.id;
         if (pf.__typename === "ProjectV2SingleSelectField" && field === "status") {
-          for (const [state, name] of Object.entries(config.project.state)) {
+          for (const [status, name] of Object.entries(config.project.card.status)) {
             if (!name) continue;
             const _ = pf.options.find((o) => o.name === name);
-            if (!_) throw new Error(`card state ${JSON.stringify(name)} not found`);
-            this.state[state] = _.id;
+            if (!_) throw new Error(`card status ${JSON.stringify(name)} not found`);
+            this.status[status] = _.id;
           }
         }
       }
@@ -24017,12 +24018,12 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (!newCard?.addProjectV2ItemById?.item) throw new Error(`Failed to create card on project ${config.project.url}`);
       return newCard.addProjectV2ItemById.item.id;
     }
-    async update(itemId, state, startDate) {
+    async update(itemId, startDate, status) {
       await (0, import_graphql.graphql)(Project.q.update, {
         projectId: this.id,
         itemId,
         statusFieldId: this.field.status,
-        statusValue: this.state[state],
+        statusValue: this.status[status],
         startDateFieldId: this.field.startDate,
         startDate,
         endDateFieldId: this.field.endDate,
@@ -24113,9 +24114,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return;
     }
     if (managed && import_github.context.payload.action === "closed") {
-      if (issue.assignees.length && config.label.merge && !$labeled(config.label.reopened)) {
-        report("user closed active issue, labelling for merge");
-        await $label(config.label.merge);
+      if (issue.assignees.length && !$labeled(config.label.reopened)) {
+        report("user closed active issue, reopen for merge");
+        await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: config.close.message.replace("{{username}}", sender) });
+        await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
       }
     } else if (managed && import_github.context.eventName === "issue_comment" && issue.state === "closed") {
       report("user commented on closed issue");
@@ -24137,12 +24139,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     if (config.project.url) {
       const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number });
       issue = data;
-      const card = await Project.get(issue);
-      if (issue.state === "closed") {
-        report("project: issue closed");
-        if (Project.state.merge && $labeled(config.label.merge)) await Project.update(card, issue.created_at, Project.state.merge);
-      } else if (issue.assignees.length && Project.state.awaiting && Project.state.assigned && Project.state.new) {
-        await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? Project.state.awaiting : Project.state.assigned);
+      if (issue.state === "open" && Project.status.awaiting && Project.status.assigned && Project.status.new) {
+        const card = await Project.get(issue);
+        await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? "awaiting" : issue.assignees.length ? "assigned" : "new");
       }
     }
   }
