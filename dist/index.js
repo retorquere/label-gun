@@ -26648,7 +26648,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         projectId: this.id,
         itemId,
         statusField: `${this.field.status}=${config.project.card.field.status}`,
-        status: `${this.status[status]}=${status}`,
+        status: `${this.status[status]}=${config.project.card.status[status]}`,
         startDateField: `${this.field.startDate}=${config.project.card.field.startDate}`,
         startDate,
         endDateField: `${this.field.endDate}=${config.project.card.field.endDate}`,
