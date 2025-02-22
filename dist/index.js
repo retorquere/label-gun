@@ -26622,7 +26622,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       });
     }
     async get(issue) {
-      report("get card", { issue, owner: this.owner, projectNumber: this.number });
+      show("get card", { issue, owner: this.owner, projectNumber: this.number });
       const data = await (0, import_graphql.graphql)(Project.q.get, {
         owner: this.owner,
         projectNumber: this.number,
@@ -26643,6 +26643,16 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return newCard.addProjectV2ItemById.item.id;
     }
     async update(itemId, startDate, status) {
+      show("update card", {
+        projectId: this.id,
+        itemId,
+        statusFieldId: this.field.status,
+        statusValue: this.status[status],
+        startDateFieldId: this.field.startDate,
+        startDate,
+        endDateFieldId: this.field.endDate,
+        endDate: (/* @__PURE__ */ new Date()).toISOString().replace(/T.*/, "")
+      });
       await (0, import_graphql.graphql)(Project.q.update, {
         projectId: this.id,
         itemId,
@@ -26669,7 +26679,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (typeof this.#collaborator[username] !== "boolean") {
         const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
         this.#collaborator[username] = user.permission === "admin";
-        report(username, "has permission", user.permission, "and is", this.#collaborator[username] ? "a" : "not a", "contributor");
+        report(username, "has", user.permission, "permission and is", this.#collaborator[username] ? "a" : "not a", "contributor");
       }
       return this.#collaborator[username];
     }
@@ -26761,8 +26771,14 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       }
     }
     if (config.project.url) {
+      show("managing project card for", { owner, repo, issue_number: issue.number });
       const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number });
       issue = data;
+      show("project issue", {
+        state: issue.state,
+        statii: Project.status,
+        go: issue.state === "open" && Project.status.awaiting && Project.status.assigned && Project.status.new
+      });
       if (issue.state === "open" && Project.status.awaiting && Project.status.assigned && Project.status.new) {
         const card = await Project.get(issue);
         await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? "awaiting" : issue.assignees.length ? "assigned" : "new");

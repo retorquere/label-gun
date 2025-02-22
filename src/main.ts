@@ -134,7 +134,7 @@ const Project = new class {
   }
 
   async get(issue: Issue): Promise<string> {
-    report('get card', { issue, owner: this.owner, projectNumber: this.number })
+    show('get card', { issue, owner: this.owner, projectNumber: this.number })
 
     const data = await graphql<ProjectCardForIssueQuery>(Project.q.get, {
       owner: this.owner,
@@ -164,6 +164,16 @@ const Project = new class {
   }
 
   async update(itemId: string, startDate: string, status: Status) {
+    show('update card', {
+      projectId: this.id,
+      itemId,
+      statusFieldId: this.field.status,
+      statusValue: this.status[status],
+      startDateFieldId: this.field.startDate,
+      startDate: startDate,
+      endDateFieldId: this.field.endDate,
+      endDate: new Date().toISOString().replace(/T.*/, ''),
+    })
     await graphql<UpdateCardMutation>(Project.q.update, {
       projectId: this.id,
       itemId,
@@ -307,9 +317,15 @@ async function update(issue: Issue, body: string): Promise<void> {
   }
 
   if (config.project.url) {
+    show('managing project card for', { owner, repo, issue_number: issue.number })
     const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number })
     issue = data as unknown as Issue
 
+    show('project issue', {
+      state: issue.state,
+      statii: Project.status,
+      go: issue.state === 'open' && Project.status.awaiting && Project.status.assigned && Project.status.new,
+    })
     if (issue.state === 'open' && Project.status.awaiting && Project.status.assigned && Project.status.new) {
       const card = await Project.get(issue)
       await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? 'awaiting' : (issue.assignees.length ? 'assigned' : 'new'))
