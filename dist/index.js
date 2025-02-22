@@ -26647,11 +26647,11 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       show("update card", {
         projectId: this.id,
         itemId,
-        statusFieldId: this.field.status,
+        statusField: config.project.card.field.status,
         status: this.status[status],
-        startDateFieldId: this.field.startDate,
+        startDateField: config.project.card.field.startDate,
         startDate,
-        endDateFieldId: this.field.endDate,
+        endDateField: config.project.card.field.endDate,
         endDate: (/* @__PURE__ */ new Date()).toISOString().replace(/T.*/, "")
       });
       await (0, import_graphql.graphql)(Project.q.update, {

@@ -168,11 +168,11 @@ const Project = new class {
     show('update card', {
       projectId: this.id,
       itemId,
-      statusFieldId: this.field.status,
+      statusField: config.project.card.field.status,
       status: this.status[status],
-      startDateFieldId: this.field.startDate,
+      startDateField: config.project.card.field.startDate,
       startDate: startDate,
-      endDateFieldId: this.field.endDate,
+      endDateField: config.project.card.field.endDate,
       endDate: new Date().toISOString().replace(/T.*/, ''),
     })
     await graphql<UpdateCardMutation>(Project.q.update, {
