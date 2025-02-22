@@ -146,12 +146,12 @@ const Project = new class {
     })
 
     show('card response', data)
-    let card = data.repository?.issue?.projectItems.nodes?.find(node => (
-      node
-      && (node.project.owner.__typename === 'Organization' || node.project.owner.__typename === 'User')
-      && node.project.owner.login == this.owner
-      && node.project.number === this.number
-    ))
+    let card = data
+      .repository
+      ?.issue
+      ?.projectItems
+      .nodes
+      ?.find(node => (node as any)?.project.owner.login == this.owner && node?.project.number === this.number)
     if (card) {
       show('retrieved card', card)
       return card.id
