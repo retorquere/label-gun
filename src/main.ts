@@ -145,6 +145,7 @@ const Project = new class {
       },
     })
 
+    show('card response', data)
     let card = data.repository?.issue?.projectItems.nodes?.find(node => (
       node
       && (node.project.owner.__typename === 'Organization' || node.project.owner.__typename === 'User')
