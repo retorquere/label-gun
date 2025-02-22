@@ -26549,8 +26549,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     console.log(...msg);
   }
   function show(msg, obj) {
-    report(`${msg}
-${dump(config, { schema: schema2 })}`);
+    report(dump({ [msg]: config }, { schema: schema2 }));
   }
   var octokit = (0, import_github.getOctokit)(config.token);
   show("starting with", config);
@@ -26613,17 +26612,14 @@ ${dump(config, { schema: schema2 })}`);
           }
         }
       }
-      show(
-        "project loaded",
-        {
-          owner: this.owner,
-          type: this.type,
-          number: this.number,
-          id: this.id,
-          fields: this.field,
-          status: this.status
-        }
-      );
+      show("project loaded", {
+        owner: this.owner,
+        type: this.type,
+        number: this.number,
+        id: this.id,
+        fields: this.field,
+        status: this.status
+      });
     }
     async get(issue) {
       report("get card", { issue, owner: this.owner, projectNumber: this.number });
@@ -26715,17 +26711,14 @@ ${dump(config, { schema: schema2 })}`);
       if (active.user && active.owner) break;
     }
     const managed = active.user && !$labeled(config.label.exempt) && (!config.label.active || $labeled(config.label.active));
-    show(
-      "entering issue handler",
-      {
-        active,
-        managed,
-        label: {
-          exempt: $labeled(config.label.exempt),
-          active: $labeled(config.label.active)
-        }
+    show("entering issue handler", {
+      active,
+      managed,
+      label: {
+        exempt: $labeled(config.label.exempt),
+        active: $labeled(config.label.active)
       }
-    );
+    });
     if (config.user.assign && issue.state === "closed") {
       const assignees = issue.assignees.map((assignee) => assignee.login);
       if (assignees.length) {
