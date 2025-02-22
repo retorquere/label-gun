@@ -151,7 +151,10 @@ const Project = new class {
       && node.project.owner.login == this.owner
       && node.project.number === this.number
     ))
-    if (card) return card.id
+    if (card) {
+      show('retrieved card', card)
+      return card.id
+    }
 
     const newCard = await graphql<CreateCardMutation>(Project.q.create, {
       projectId: this.id,
