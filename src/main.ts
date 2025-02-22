@@ -45,7 +45,7 @@ function report(...msg: any[]) {
 }
 
 function show(msg: string, obj: any) {
-  report(yaml.dump({ [msg]: config }, { schema }))
+  report(yaml.dump({ [msg]: obj }, { schema }))
 }
 
 const octokit = getOctokit(config.token)
