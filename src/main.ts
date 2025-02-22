@@ -194,7 +194,7 @@ const User = new class {
     if (typeof this.#collaborator[username] !== 'boolean') {
       const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username })
       this.#collaborator[username] = user.permission === 'admin'
-      report(username, 'has permission', user.permission, 'and is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
+      report(username, 'has', user.permission, 'permission and is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
     }
     return this.#collaborator[username]
   }
