@@ -154,7 +154,7 @@ const Project = new class {
     if (card) return card.id
 
     const newCard = await graphql<CreateCardMutation>(Project.q.create, {
-      owner: this.id,
+      projectId: this.id,
       contentId: issue.node_id,
       headers: {
         authorization: `Bearer ${config.project.token}`,

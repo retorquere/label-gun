@@ -26634,7 +26634,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       let card = data.repository?.issue?.projectItems.nodes?.find((node) => node && (node.project.owner.__typename === "Organization" || node.project.owner.__typename === "User") && node.project.owner.login == this.owner && node.project.number === this.number);
       if (card) return card.id;
       const newCard = await (0, import_graphql.graphql)(Project.q.create, {
-        owner: this.id,
+        projectId: this.id,
         contentId: issue.node_id,
         headers: {
           authorization: `Bearer ${config.project.token}`
