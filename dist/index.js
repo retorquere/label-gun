@@ -26549,7 +26549,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     console.log(...msg);
   }
   function show(msg, obj) {
-    report(dump({ [msg]: obj }, { schema: schema2 }));
+    report(dump({ [`${msg} =>`]: obj }, { schema: schema2 }));
   }
   var octokit = (0, import_github.getOctokit)(config.token);
   show("starting with", config);
