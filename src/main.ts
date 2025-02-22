@@ -44,9 +44,13 @@ function report(...msg: any[]) {
   console.log(...msg)
 }
 
+function show(msg: string, obj: any) {
+  report(`${msg}\n${yaml.dump(config, { schema })}`)
+}
+
 const octokit = getOctokit(config.token)
 
-report('starting with\n', yaml.dump(config, { schema }))
+show('starting with', config)
 
 type Field = keyof typeof config.project.card.field
 type Status = keyof typeof config.project.card.status
@@ -77,14 +81,11 @@ const Project = new class {
       this.type = type === 'users' ? 'user' : 'org'
       this.owner = owner
       this.number = parseInt(number)
-      report(
-        'project config\n',
-        yaml.dump({
-          owner: this.owner,
-          type: this.type,
-          number: this.number,
-        }, { schema }),
-      )
+      show('project config', {
+        owner: this.owner,
+        type: this.type,
+        number: this.number,
+      })
     }
   }
 
@@ -122,17 +123,14 @@ const Project = new class {
         }
       }
     }
-    report(
-      'project loaded\n',
-      yaml.dump({
-        owner: this.owner,
-        type: this.type,
-        number: this.number,
-        id: this.id,
-        fields: this.field,
-        status: this.status,
-      }, { schema }),
-    )
+    show('project loaded', {
+      owner: this.owner,
+      type: this.type,
+      number: this.number,
+      id: this.id,
+      fields: this.field,
+      status: this.status,
+    })
   }
 
   async get(issue: Issue): Promise<string> {
@@ -247,17 +245,14 @@ async function update(issue: Issue, body: string): Promise<void> {
   }
   const managed = active.user && !$labeled(config.label.exempt) && (!config.label.active || $labeled(config.label.active))
 
-  report(
-    'entering issue handler\n',
-    yaml.dump({
-      active,
-      managed,
-      label: {
-        exempt: $labeled(config.label.exempt),
-        active: $labeled(config.label.active),
-      },
-    }, { schema }),
-  )
+  show('entering issue handler', {
+    active,
+    managed,
+    label: {
+      exempt: $labeled(config.label.exempt),
+      active: $labeled(config.label.active),
+    },
+  })
 
   if (config.user.assign && issue.state === 'closed') {
     const assignees = issue.assignees.map(assignee => assignee.login)

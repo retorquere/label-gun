@@ -26548,8 +26548,12 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     if (!config.verbose) return;
     console.log(...msg);
   }
+  function show(msg, obj) {
+    report(`${msg}
+${dump(config, { schema: schema2 })}`);
+  }
   var octokit = (0, import_github.getOctokit)(config.token);
-  report("starting with\n", dump(config, { schema: schema2 }));
+  show("starting with", config);
   var Project = new class {
     constructor() {
       this.q = {
@@ -26574,14 +26578,11 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         this.type = type2 === "users" ? "user" : "org";
         this.owner = owner2;
         this.number = parseInt(number);
-        report(
-          "project config\n",
-          dump({
-            owner: this.owner,
-            type: this.type,
-            number: this.number
-          }, { schema: schema2 })
-        );
+        show("project config", {
+          owner: this.owner,
+          type: this.type,
+          number: this.number
+        });
       }
     }
     async load() {
@@ -26612,16 +26613,16 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
           }
         }
       }
-      report(
-        "project loaded\n",
-        dump({
+      show(
+        "project loaded",
+        {
           owner: this.owner,
           type: this.type,
           number: this.number,
           id: this.id,
           fields: this.field,
           status: this.status
-        }, { schema: schema2 })
+        }
       );
     }
     async get(issue) {
@@ -26714,16 +26715,16 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (active.user && active.owner) break;
     }
     const managed = active.user && !$labeled(config.label.exempt) && (!config.label.active || $labeled(config.label.active));
-    report(
-      "entering issue handler\n",
-      dump({
+    show(
+      "entering issue handler",
+      {
         active,
         managed,
         label: {
           exempt: $labeled(config.label.exempt),
           active: $labeled(config.label.active)
         }
-      }, { schema: schema2 })
+      }
     );
     if (config.user.assign && issue.state === "closed") {
       const assignees = issue.assignees.map((assignee) => assignee.login);
