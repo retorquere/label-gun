@@ -344,6 +344,7 @@ async function update(issue: Issue, body: string): Promise<void> {
     })
     if (issue.state === 'open' && Project.status.awaiting && Project.status.assigned && Project.status.new) {
       const card = await Project.get(issue)
+      show('current card state', card)
       await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? 'awaiting' : (issue.assignees.length ? 'assigned' : 'new'))
     }
   }
