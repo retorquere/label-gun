@@ -26644,6 +26644,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         }
       });
       if (!newCard?.addProjectV2ItemById?.item) throw new Error(`Failed to create card on project ${config.project.url}`);
+      show("created card", newCard);
       return newCard.addProjectV2ItemById.item.id;
     }
     async update(itemId, startDate, status) {
