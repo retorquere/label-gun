@@ -196,23 +196,28 @@ const User = new class {
   async isCollaborator(username?: string, allowBot = false): Promise<boolean> {
     if (!username) return false
 
-    if (username.endsWith('[bot]') || config.user.bots.includes(username)) {
-      report(username, 'is a bot, which we', allowBot ? 'consider' : 'do not consider', 'to be a contributor')
-      return allowBot
-    }
+    const isBot = username.endsWith('[bot]') || config.user.bots.includes(username)
+    if (isBot && !allowBot) username += '[as-user]'
 
     if (typeof this.#collaborator[username] !== 'boolean') {
-      const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username })
-      this.#collaborator[username] = user.permission === 'admin'
-      report(username, 'has', user.permission, 'permission and is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
+      if (isBot) {
+        this.#collaborator[username] = !!allowBot
+        report(username, 'is a bot, which we', this.#collaborator[username] ? 'consider' : 'do not consider', 'to be a contributor')
+      }
+      else {
+        const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username })
+        this.#collaborator[username] = user.permission === 'admin'
+        report(username, 'has', user.permission, 'permission and is', this.#collaborator[username] ? 'a' : 'not a', 'contributor')
+      }
     }
+
     return this.#collaborator[username]
   }
 }()
 
 async function update(issue: Issue, body: string): Promise<void> {
   if (!issue) throw new Error('No issue found')
-  report('\n === processing issue', issue.number, '===')
+  report('\n=== processing issue', issue.number, '===')
 
   function $labeled(...name: string[]) {
     name = name.filter(_ => _)
@@ -284,34 +289,44 @@ async function update(issue: Issue, body: string): Promise<void> {
     if (context.payload.action != 'edited' && managed) {
       await (issue.state === 'open' ? $label(config.label.awaiting) : $unlabel(config.label.awaiting))
     }
-    return
   }
-
-  // user activity
-  if (managed && context.payload.action === 'closed') { // user closed the issue
-    if (issue.assignees.length && !$labeled(config.label.reopened)) {
-      report('user closed active issue, reopen for merge')
-      await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: config.close.message.replace('{{username}}', sender) })
+  else {
+    // user activity
+    if (managed && context.payload.action === 'closed') { // user closed the issue
+      if (issue.assignees.length && !$labeled(config.label.reopened)) {
+        report('user closed active issue, reopen for merge')
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: issue.number,
+          body: config.close.message.replace('{{username}}', sender),
+        })
+        await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
+      }
+    }
+    else if (managed && context.eventName === 'issue_comment' && issue.state === 'closed') { // user commented on a closed issue
+      report('user commented on closed issue')
       await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
+      await $label(config.label.reopened)
     }
-  }
-  else if (managed && context.eventName === 'issue_comment' && issue.state === 'closed') { // user commented on a closed issue
-    report('user commented on closed issue')
-    await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
-    await $label(config.label.reopened)
-  }
 
-  await $unlabel(config.label.awaiting)
+    await $unlabel(config.label.awaiting)
 
-  if (managed && config.log.regex && context.eventName !== 'workflow_dispatch') {
-    if (issue.state === 'closed' || body.match(config.log.regex)) {
-      await $unlabel(config.log.label)
-    }
-    else if (context.eventName === 'issues' && context.payload.action === 'opened') { // new issue, missing log
-      report('log missing')
-      await $label(config.log.label)
-      if (config.log.message && sender) {
-        await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: config.log.message.replace('{{username}}', sender) })
+    if (managed && config.log.regex && context.eventName !== 'workflow_dispatch') {
+      if (issue.state === 'closed' || body.match(config.log.regex)) {
+        await $unlabel(config.log.label)
+      }
+      else if (context.eventName === 'issues' && context.payload.action === 'opened') { // new issue, missing log
+        report('log missing')
+        await $label(config.log.label)
+        if (config.log.message && sender) {
+          await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: issue.number,
+            body: config.log.message.replace('{{username}}', sender),
+          })
+        }
       }
     }
   }

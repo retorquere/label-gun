@@ -26672,21 +26672,24 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     #collaborator = {};
     async isCollaborator(username, allowBot = false) {
       if (!username) return false;
-      if (username.endsWith("[bot]") || config.user.bots.includes(username)) {
-        report(username, "is a bot, which we", allowBot ? "consider" : "do not consider", "to be a contributor");
-        return allowBot;
-      }
+      const isBot = username.endsWith("[bot]") || config.user.bots.includes(username);
+      if (isBot && !allowBot) username += "[as-user]";
       if (typeof this.#collaborator[username] !== "boolean") {
-        const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
-        this.#collaborator[username] = user.permission === "admin";
-        report(username, "has", user.permission, "permission and is", this.#collaborator[username] ? "a" : "not a", "contributor");
+        if (isBot) {
+          this.#collaborator[username] = !!allowBot;
+          report(username, "is a bot, which we", this.#collaborator[username] ? "consider" : "do not consider", "to be a contributor");
+        } else {
+          const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
+          this.#collaborator[username] = user.permission === "admin";
+          report(username, "has", user.permission, "permission and is", this.#collaborator[username] ? "a" : "not a", "contributor");
+        }
       }
       return this.#collaborator[username];
     }
   }();
   async function update(issue, body) {
     if (!issue) throw new Error("No issue found");
-    report("\n === processing issue", issue.number, "===");
+    report("\n=== processing issue", issue.number, "===");
     function $labeled(...name) {
       name = name.filter((_) => _);
       const labeled = (issue.labels || []).find((label) => name.includes(typeof label === "string" ? label : label?.name || ""));
@@ -26745,28 +26748,38 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (import_github.context.payload.action != "edited" && managed) {
         await (issue.state === "open" ? $label(config.label.awaiting) : $unlabel(config.label.awaiting));
       }
-      return;
-    }
-    if (managed && import_github.context.payload.action === "closed") {
-      if (issue.assignees.length && !$labeled(config.label.reopened)) {
-        report("user closed active issue, reopen for merge");
-        await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: config.close.message.replace("{{username}}", sender) });
+    } else {
+      if (managed && import_github.context.payload.action === "closed") {
+        if (issue.assignees.length && !$labeled(config.label.reopened)) {
+          report("user closed active issue, reopen for merge");
+          await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: issue.number,
+            body: config.close.message.replace("{{username}}", sender)
+          });
+          await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
+        }
+      } else if (managed && import_github.context.eventName === "issue_comment" && issue.state === "closed") {
+        report("user commented on closed issue");
         await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
+        await $label(config.label.reopened);
       }
-    } else if (managed && import_github.context.eventName === "issue_comment" && issue.state === "closed") {
-      report("user commented on closed issue");
-      await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
-      await $label(config.label.reopened);
-    }
-    await $unlabel(config.label.awaiting);
-    if (managed && config.log.regex && import_github.context.eventName !== "workflow_dispatch") {
-      if (issue.state === "closed" || body.match(config.log.regex)) {
-        await $unlabel(config.log.label);
-      } else if (import_github.context.eventName === "issues" && import_github.context.payload.action === "opened") {
-        report("log missing");
-        await $label(config.log.label);
-        if (config.log.message && sender) {
-          await octokit.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: config.log.message.replace("{{username}}", sender) });
+      await $unlabel(config.label.awaiting);
+      if (managed && config.log.regex && import_github.context.eventName !== "workflow_dispatch") {
+        if (issue.state === "closed" || body.match(config.log.regex)) {
+          await $unlabel(config.log.label);
+        } else if (import_github.context.eventName === "issues" && import_github.context.payload.action === "opened") {
+          report("log missing");
+          await $label(config.log.label);
+          if (config.log.message && sender) {
+            await octokit.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: config.log.message.replace("{{username}}", sender)
+            });
+          }
         }
       }
     }
