@@ -26622,10 +26622,11 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       });
     }
     async get(issue) {
-      show("get card", { issue, owner: this.owner, projectNumber: this.number });
+      show("get card", { owner: this.owner, repo, issueNumber: issue.number });
       const data = await (0, import_graphql.graphql)(Project.q.get, {
         owner: this.owner,
-        projectNumber: this.number,
+        repo,
+        issueNumber: issue.number,
         headers: {
           authorization: `Bearer ${config.project.token}`
         }

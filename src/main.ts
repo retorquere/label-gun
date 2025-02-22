@@ -134,11 +134,12 @@ const Project = new class {
   }
 
   async get(issue: Issue): Promise<string> {
-    show('get card', { issue, owner: this.owner, projectNumber: this.number })
+    show('get card', { owner: this.owner, repo, issueNumber: issue.number })
 
     const data = await graphql<ProjectCardForIssueQuery>(Project.q.get, {
       owner: this.owner,
-      projectNumber: this.number,
+      repo,
+      issueNumber: issue.number,
       headers: {
         authorization: `Bearer ${config.project.token}`,
       },
