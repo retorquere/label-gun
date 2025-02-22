@@ -3,9 +3,34 @@ import { context, getOctokit } from '@actions/github'
 import { graphql } from '@octokit/graphql'
 import { RequestError } from '@octokit/request-error'
 import { Issue, IssueComment, ProjectsV2Item } from '@octokit/webhooks-types'
-import yaml from 'js-yaml'
 import { OrgProjectV2FieldsQuery, UserProjectV2FieldsQuery } from './types'
 import { CreateCardMutation, ProjectCardForIssueQuery, UpdateCardMutation } from './types'
+
+import * as yaml from 'js-yaml'
+const RegExpYamlType = new yaml.Type('!regexp', {
+  kind: 'scalar', // RegExp is represented as a scalar (string)
+  resolve: function(data) {
+    return data !== null && typeof data === 'string' && data.startsWith('/') // Check if it looks like a regex
+  },
+  construct: function(data) {
+    try {
+      const match = data.match(/^\/(.*)\/([gimuy]*)$/)
+      if (!match) {
+        throw new Error('Invalid RegExp string')
+      }
+      return new RegExp(match[1], match[2])
+    }
+    catch (e) {
+      console.error('Error parsing RegExp:', data, e)
+      return /$^/ // Or throw the error
+    }
+  },
+  instanceOf: RegExp,
+  represent: function(regexp) {
+    return regexp.toString() // Represent the RegExp as its string form
+  },
+})
+const schema = yaml.DEFAULT_SCHEMA.extend([RegExpYamlType])
 
 import { config } from './config'
 
@@ -21,7 +46,7 @@ function report(...msg: any[]) {
 
 const octokit = getOctokit(config.token)
 
-report('starting with\n', yaml.dump(config))
+report('starting with\n', yaml.dump(config, { schema }))
 
 type Field = keyof typeof config.project.card.field
 type Status = keyof typeof config.project.card.status
@@ -58,7 +83,7 @@ const Project = new class {
           owner: this.owner,
           type: this.type,
           number: this.number,
-        }),
+        }, { schema }),
       )
     }
   }
@@ -106,7 +131,7 @@ const Project = new class {
         id: this.id,
         fields: this.field,
         status: this.status,
-      }),
+      }, { schema }),
     )
   }
 
@@ -231,7 +256,7 @@ async function update(issue: Issue, body: string): Promise<void> {
         exempt: $labeled(config.label.exempt),
         active: $labeled(config.label.active),
       },
-    }),
+    }, { schema }),
   )
 
   if (config.user.assign && issue.state === 'closed') {

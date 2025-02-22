@@ -4142,7 +4142,7 @@
   var require_webidl = __commonJS({
     "node_modules/undici/lib/fetch/webidl.js"(exports, module) {
       "use strict";
-      var { types: types2 } = __require("util");
+      var { types } = __require("util");
       var { hasOwn, toUSVString } = require_util2();
       var webidl = {};
       webidl.converters = {};
@@ -4307,7 +4307,7 @@
             });
           }
           const result = {};
-          if (!types2.isProxy(O)) {
+          if (!types.isProxy(O)) {
             const keys2 = Object.keys(O);
             for (const key of keys2) {
               const typedKey = keyConverter(key);
@@ -4433,14 +4433,14 @@
         return x;
       };
       webidl.converters.ArrayBuffer = function(V, opts = {}) {
-        if (webidl.util.Type(V) !== "Object" || !types2.isAnyArrayBuffer(V)) {
+        if (webidl.util.Type(V) !== "Object" || !types.isAnyArrayBuffer(V)) {
           throw webidl.errors.conversionFailed({
             prefix: `${V}`,
             argument: `${V}`,
             types: ["ArrayBuffer"]
           });
         }
-        if (opts.allowShared === false && types2.isSharedArrayBuffer(V)) {
+        if (opts.allowShared === false && types.isSharedArrayBuffer(V)) {
           throw webidl.errors.exception({
             header: "ArrayBuffer",
             message: "SharedArrayBuffer is not allowed."
@@ -4449,14 +4449,14 @@
         return V;
       };
       webidl.converters.TypedArray = function(V, T, opts = {}) {
-        if (webidl.util.Type(V) !== "Object" || !types2.isTypedArray(V) || V.constructor.name !== T.name) {
+        if (webidl.util.Type(V) !== "Object" || !types.isTypedArray(V) || V.constructor.name !== T.name) {
           throw webidl.errors.conversionFailed({
             prefix: `${T.name}`,
             argument: `${V}`,
             types: [T.name]
           });
         }
-        if (opts.allowShared === false && types2.isSharedArrayBuffer(V.buffer)) {
+        if (opts.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
           throw webidl.errors.exception({
             header: "ArrayBuffer",
             message: "SharedArrayBuffer is not allowed."
@@ -4465,13 +4465,13 @@
         return V;
       };
       webidl.converters.DataView = function(V, opts = {}) {
-        if (webidl.util.Type(V) !== "Object" || !types2.isDataView(V)) {
+        if (webidl.util.Type(V) !== "Object" || !types.isDataView(V)) {
           throw webidl.errors.exception({
             header: "DataView",
             message: "Object is not a DataView."
           });
         }
-        if (opts.allowShared === false && types2.isSharedArrayBuffer(V.buffer)) {
+        if (opts.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
           throw webidl.errors.exception({
             header: "ArrayBuffer",
             message: "SharedArrayBuffer is not allowed."
@@ -4480,13 +4480,13 @@
         return V;
       };
       webidl.converters.BufferSource = function(V, opts = {}) {
-        if (types2.isAnyArrayBuffer(V)) {
+        if (types.isAnyArrayBuffer(V)) {
           return webidl.converters.ArrayBuffer(V, opts);
         }
-        if (types2.isTypedArray(V)) {
+        if (types.isTypedArray(V)) {
           return webidl.converters.TypedArray(V, V.constructor);
         }
-        if (types2.isDataView(V)) {
+        if (types.isDataView(V)) {
           return webidl.converters.DataView(V, opts);
         }
         throw new TypeError(`Could not convert ${V} to a BufferSource.`);
@@ -4797,7 +4797,7 @@
     "node_modules/undici/lib/fetch/file.js"(exports, module) {
       "use strict";
       var { Blob: Blob2, File: NativeFile } = __require("buffer");
-      var { types: types2 } = __require("util");
+      var { types } = __require("util");
       var { kState } = require_symbols2();
       var { isBlobLike } = require_util2();
       var { webidl } = require_webidl();
@@ -4906,7 +4906,7 @@
           if (isBlobLike(V)) {
             return webidl.converters.Blob(V, { strict: false });
           }
-          if (ArrayBuffer.isView(V) || types2.isAnyArrayBuffer(V)) {
+          if (ArrayBuffer.isView(V) || types.isAnyArrayBuffer(V)) {
             return webidl.converters.BufferSource(V, opts);
           }
         }
@@ -4950,7 +4950,7 @@
               s = convertLineEndingsNative(s);
             }
             bytes.push(encoder.encode(s));
-          } else if (types2.isAnyArrayBuffer(element) || types2.isTypedArray(element)) {
+          } else if (types.isAnyArrayBuffer(element) || types.isTypedArray(element)) {
             if (!element.buffer) {
               bytes.push(new Uint8Array(element));
             } else {
@@ -11837,7 +11837,7 @@ ${pendingInterceptorsFormatter.format(pending)}
       var { URLSerializer } = require_dataURL();
       var { kHeadersList, kConstruct } = require_symbols();
       var assert = __require("assert");
-      var { types: types2 } = __require("util");
+      var { types } = __require("util");
       var ReadableStream = globalThis.ReadableStream || __require("stream/web").ReadableStream;
       var textEncoder = new TextEncoder("utf-8");
       var Response = class _Response {
@@ -12140,7 +12140,7 @@ ${pendingInterceptorsFormatter.format(pending)}
         if (isBlobLike(V)) {
           return webidl.converters.Blob(V, { strict: false });
         }
-        if (types2.isArrayBuffer(V) || types2.isTypedArray(V) || types2.isDataView(V)) {
+        if (types.isArrayBuffer(V) || types.isTypedArray(V) || types.isDataView(V)) {
           return webidl.converters.BufferSource(V);
         }
         if (util.isFormDataLike(V)) {
@@ -14246,7 +14246,7 @@ ${pendingInterceptorsFormatter.format(pending)}
       var { getEncoding } = require_encoding();
       var { DOMException: DOMException2 } = require_constants2();
       var { serializeAMimeType, parseMIMEType } = require_dataURL();
-      var { types: types2 } = __require("util");
+      var { types } = __require("util");
       var { StringDecoder } = __require("string_decoder");
       var { btoa } = __require("buffer");
       var staticPropertyDescriptors = {
@@ -14276,7 +14276,7 @@ ${pendingInterceptorsFormatter.format(pending)}
                 });
               }
               isFirstChunk = false;
-              if (!done && types2.isUint8Array(value)) {
+              if (!done && types.isUint8Array(value)) {
                 bytes.push(value);
                 if ((fr[kLastProgressEventFired] === void 0 || Date.now() - fr[kLastProgressEventFired] >= 50) && !fr[kAborted]) {
                   fr[kLastProgressEventFired] = Date.now();
@@ -16656,7 +16656,7 @@ ${pendingInterceptorsFormatter.format(pending)}
       var { ByteParser } = require_receiver();
       var { kEnumerableProperty, isBlobLike } = require_util();
       var { getGlobalDispatcher } = require_global2();
-      var { types: types2 } = __require("util");
+      var { types } = __require("util");
       var experimentalWarned = false;
       var WebSocket = class _WebSocket extends EventTarget {
         #events = {
@@ -16803,7 +16803,7 @@ ${pendingInterceptorsFormatter.format(pending)}
             socket.write(buffer, () => {
               this.#bufferedAmount -= value.byteLength;
             });
-          } else if (types2.isArrayBuffer(data)) {
+          } else if (types.isArrayBuffer(data)) {
             const value = Buffer.from(data);
             const frame = new WebsocketFrameSend(value);
             const buffer = frame.createFrame(opcodes.BINARY);
@@ -17025,7 +17025,7 @@ ${pendingInterceptorsFormatter.format(pending)}
           if (isBlobLike(V)) {
             return webidl.converters.Blob(V, { strict: false });
           }
-          if (ArrayBuffer.isView(V) || types2.isAnyArrayBuffer(V)) {
+          if (ArrayBuffer.isView(V) || types.isAnyArrayBuffer(V)) {
             return webidl.converters.BufferSource(V);
           }
         }
@@ -24058,9 +24058,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
   }
   var type = Type$1;
-  function compileList(schema2, name) {
+  function compileList(schema3, name) {
     var result = [];
-    schema2[name].forEach(function(currentType) {
+    schema3[name].forEach(function(currentType) {
       var newIndex = result.length;
       result.forEach(function(previousType, previousIndex) {
         if (previousType.tag === currentType.tag && previousType.kind === currentType.kind && previousType.multi === currentType.multi) {
@@ -25864,7 +25864,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     "OFF"
   ];
   var DEPRECATED_BASE60_SYNTAX = /^[-+]?[0-9_]+(?::[0-9_]+)+(?:\.[0-9_]*)?$/;
-  function compileStyleMap(schema2, map2) {
+  function compileStyleMap(schema3, map2) {
     var result, keys, index, length, tag, style, type2;
     if (map2 === null) return {};
     result = {};
@@ -25875,7 +25875,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (tag.slice(0, 2) === "!!") {
         tag = "tag:yaml.org,2002:" + tag.slice(2);
       }
-      type2 = schema2.compiledTypeMap["fallback"][tag];
+      type2 = schema3.compiledTypeMap["fallback"][tag];
       if (type2 && _hasOwnProperty.call(type2.styleAliases, style)) {
         style = type2.styleAliases[style];
       }
@@ -26430,50 +26430,13 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     };
   }
   var Type = type;
-  var Schema = schema;
-  var FAILSAFE_SCHEMA = failsafe;
-  var JSON_SCHEMA = json;
-  var CORE_SCHEMA = core;
   var DEFAULT_SCHEMA = _default;
   var load = loader.load;
   var loadAll = loader.loadAll;
   var dump = dumper.dump;
-  var YAMLException = exception;
-  var types = {
-    binary,
-    float,
-    map,
-    null: _null,
-    pairs,
-    set,
-    timestamp,
-    bool,
-    int,
-    merge: merge2,
-    omap,
-    seq,
-    str
-  };
   var safeLoad = renamed("safeLoad", "load");
   var safeLoadAll = renamed("safeLoadAll", "loadAll");
   var safeDump = renamed("safeDump", "dump");
-  var jsYaml = {
-    Type,
-    Schema,
-    FAILSAFE_SCHEMA,
-    JSON_SCHEMA,
-    CORE_SCHEMA,
-    DEFAULT_SCHEMA,
-    load,
-    loadAll,
-    dump,
-    YAMLException,
-    types,
-    safeLoad,
-    safeLoadAll,
-    safeDump
-  };
-  var js_yaml_default = jsYaml;
 
   // src/config.ts
   var core2 = __toESM(require_core());
@@ -26553,6 +26516,30 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   };
 
   // src/main.ts
+  var RegExpYamlType = new Type("!regexp", {
+    kind: "scalar",
+    // RegExp is represented as a scalar (string)
+    resolve: function(data) {
+      return data !== null && typeof data === "string" && data.startsWith("/");
+    },
+    construct: function(data) {
+      try {
+        const match = data.match(/^\/(.*)\/([gimuy]*)$/);
+        if (!match) {
+          throw new Error("Invalid RegExp string");
+        }
+        return new RegExp(match[1], match[2]);
+      } catch (e) {
+        console.error("Error parsing RegExp:", data, e);
+        return /$^/;
+      }
+    },
+    instanceOf: RegExp,
+    represent: function(regexp) {
+      return regexp.toString();
+    }
+  });
+  var schema2 = DEFAULT_SCHEMA.extend([RegExpYamlType]);
   var sender = import_github.context.payload.sender?.login || "";
   var bot = import_github.context.payload.sender?.type === "Bot";
   var owner = import_github.context.payload.repository?.owner?.login || "";
@@ -26562,7 +26549,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     console.log(...msg);
   }
   var octokit = (0, import_github.getOctokit)(config.token);
-  report("starting with\n", js_yaml_default.dump(config));
+  report("starting with\n", dump(config, { schema: schema2 }));
   var Project = new class {
     constructor() {
       this.q = {
@@ -26589,11 +26576,11 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         this.number = parseInt(number);
         report(
           "project config\n",
-          js_yaml_default.dump({
+          dump({
             owner: this.owner,
             type: this.type,
             number: this.number
-          })
+          }, { schema: schema2 })
         );
       }
     }
@@ -26627,14 +26614,14 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       }
       report(
         "project loaded\n",
-        js_yaml_default.dump({
+        dump({
           owner: this.owner,
           type: this.type,
           number: this.number,
           id: this.id,
           fields: this.field,
           status: this.status
-        })
+        }, { schema: schema2 })
       );
     }
     async get(issue) {
@@ -26729,14 +26716,14 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     const managed = active.user && !$labeled(config.label.exempt) && (!config.label.active || $labeled(config.label.active));
     report(
       "entering issue handler\n",
-      js_yaml_default.dump({
+      dump({
         active,
         managed,
         label: {
           exempt: $labeled(config.label.exempt),
           active: $labeled(config.label.active)
         }
-      })
+      }, { schema: schema2 })
     );
     if (config.user.assign && issue.state === "closed") {
       const assignees = issue.assignees.map((assignee) => assignee.login);
