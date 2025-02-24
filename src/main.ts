@@ -2,35 +2,8 @@ import * as core from '@actions/core'
 import { context, getOctokit } from '@actions/github'
 import { graphql } from '@octokit/graphql'
 import { RequestError } from '@octokit/request-error'
-import { Issue, IssueComment, ProjectsV2Item } from '@octokit/webhooks-types'
-import { OrgProjectV2FieldsQuery, UserProjectV2FieldsQuery } from './types'
-import { CreateCardMutation, ProjectCardForIssueQuery, UpdateCardMutation } from './types'
-
-import * as yaml from 'js-yaml'
-const RegExpYamlType = new yaml.Type('!regexp', {
-  kind: 'scalar', // RegExp is represented as a scalar (string)
-  resolve: function(data) {
-    return data !== null && typeof data === 'string' && data.startsWith('/') // Check if it looks like a regex
-  },
-  construct: function(data) {
-    try {
-      const match = data.match(/^\/(.*)\/([gimuy]*)$/)
-      if (!match) {
-        throw new Error('Invalid RegExp string')
-      }
-      return new RegExp(match[1], match[2])
-    }
-    catch (e) {
-      console.error('Error parsing RegExp:', data, e)
-      return /$^/ // Or throw the error
-    }
-  },
-  instanceOf: RegExp,
-  represent: function(regexp) {
-    return regexp.toString() // Represent the RegExp as its string form
-  },
-})
-const schema = yaml.DEFAULT_SCHEMA.extend([RegExpYamlType])
+import { Issue, IssueComment } from '@octokit/webhooks-types'
+import * as util from 'util'
 
 import { config } from './config'
 
@@ -45,156 +18,12 @@ function report(...msg: any[]) {
 }
 
 function show(msg: string, obj: any) {
-  report(yaml.dump({ [`${msg} =>`]: obj }, { schema }))
+  report(util.inspect({ [`${msg} =>`]: obj }, { showHidden: false, depth: null, colors: true }))
 }
 
 const octokit = getOctokit(config.token)
 
 show('starting with', config)
-
-type Field = keyof typeof config.project.card.field
-type Status = keyof typeof config.project.card.status
-
-const Project = new class {
-  public q = {
-    fields: {
-      user: require('./get/user-project-fields.graphql'),
-      org: require('./get/org-project-fields.graphql'),
-    },
-    get: require('./get/card.graphql'),
-    update: require('./put/update.graphql'),
-    create: require('./put/create.graphql'),
-  }
-
-  public owner: string = ''
-  public type: 'user' | 'org' = 'org'
-  public number: number = 0
-  public id: string = ''
-  public field: Partial<Record<Field, string>> = {}
-  public status: Partial<Record<Status, string>> = {}
-
-  constructor() {
-    if (config.project.url) {
-      const m = config.project.url.match(/https:\/\/github.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/)
-      if (!m) throw new Error(`${config.project.url} is not a valid project URL`)
-      const [, type, owner, number] = m
-      this.type = type === 'users' ? 'user' : 'org'
-      this.owner = owner
-      this.number = parseInt(number)
-      show('project config', {
-        owner: this.owner,
-        type: this.type,
-        number: this.number,
-      })
-    }
-  }
-
-  async load() {
-    if (!config.project.url) return
-
-    const data = await graphql<UserProjectV2FieldsQuery | OrgProjectV2FieldsQuery>(Project.q.fields[this.type], {
-      owner: this.owner,
-      projectNumber: this.number,
-      headers: {
-        authorization: `Bearer ${config.project.token}`,
-      },
-    })
-    const project = data?.owner?.projectV2
-    if (!project) throw new Error(`project ${JSON.stringify(config.project.url)} not found`)
-    this.id = project.id
-
-    const fields = project.fields
-    if (!fields) throw new Error(`fields for ${JSON.stringify(config.project.url)} not found`)
-
-    for (const [field, label] of Object.entries(config.project.card.field)) {
-      if (!label) continue
-
-      const pf = fields.nodes?.find(f => f && f.id && f.name && f.name === label)
-      if (!pf) throw new Error(`${field} label ${JSON.stringify(label)} not found`)
-      this.field[field as Field] = pf.id
-
-      if (pf.__typename === 'ProjectV2SingleSelectField' && field === 'status') {
-        for (const [status, name] of Object.entries(config.project.card.status)) {
-          if (!name) continue
-
-          const _ = pf.options.find(o => o.name === name)
-          if (!_) throw new Error(`card status ${JSON.stringify(name)} not found`)
-          this.status[status as Status] = _.id
-        }
-      }
-    }
-    show('project loaded', {
-      owner: this.owner,
-      type: this.type,
-      number: this.number,
-      id: this.id,
-      fields: this.field,
-      status: this.status,
-    })
-  }
-
-  async get(issue: Issue): Promise<string> {
-    show('get card', { owner: this.owner, repo, issueNumber: issue.number })
-
-    const data = await graphql<ProjectCardForIssueQuery>(Project.q.get, {
-      owner: this.owner,
-      repo,
-      issueNumber: issue.number,
-      headers: {
-        authorization: `Bearer ${config.project.token}`,
-      },
-    })
-
-    show('card response', data)
-    let card = data
-      .repository
-      ?.issue
-      ?.projectItems
-      .nodes
-      ?.find(node => (node as any)?.project.owner.login == this.owner && node?.project.number === this.number)
-    if (card) {
-      show('retrieved card', card)
-      return card.id
-    }
-
-    const newCard = await graphql<CreateCardMutation>(Project.q.create, {
-      projectId: this.id,
-      contentId: issue.node_id,
-      headers: {
-        authorization: `Bearer ${config.project.token}`,
-      },
-    })
-    if (!newCard?.addProjectV2ItemById?.item) throw new Error(`Failed to create card on project ${config.project.url}`)
-    show('created card', newCard)
-    return newCard.addProjectV2ItemById.item.id
-  }
-
-  async update(itemId: string, startDate: string, status: Status) {
-    show('update card', {
-      projectId: this.id,
-      itemId,
-      statusField: `${this.field.status}=${config.project.card.field.status}`,
-      status: `${this.status[status]}=${config.project.card.status[status]}`,
-      startDateField: `${this.field.startDate}=${config.project.card.field.startDate}`,
-      startDate: startDate,
-      endDateField: `${this.field.endDate}=${config.project.card.field.endDate}`,
-      endDate: new Date().toISOString().replace(/T.*/, ''),
-    })
-    await graphql<UpdateCardMutation>(Project.q.update, {
-      projectId: this.id,
-      itemId,
-      statusFieldId: this.field.status,
-      status: this.status[status],
-      startDateFieldId: this.field.startDate,
-      startDate: startDate,
-      endDateFieldId: this.field.endDate,
-      endDate: new Date().toISOString().replace(/T.*/, ''),
-      headers: {
-        authorization: `Bearer ${config.project.token}`,
-      },
-    })
-  }
-}()
 
 const User = new class {
   #collaborator: Record<string, boolean> = {}
@@ -336,23 +165,6 @@ async function update(issue: Issue, body: string): Promise<void> {
       }
     }
   }
-
-  if (config.project.url) {
-    show('managing project card for', { owner, repo, issue_number: issue.number })
-    const { data } = await octokit.rest.issues.get({ owner, repo, issue_number: issue.number })
-    issue = data as unknown as Issue
-
-    show('project issue', {
-      state: issue.state,
-      statii: Project.status,
-      go: issue.state === 'open' && Project.status.awaiting && Project.status.assigned && Project.status.new,
-    })
-    if (issue.state === 'open' && Project.status.awaiting && Project.status.assigned && Project.status.new) {
-      const card = await Project.get(issue)
-      show('current card state', card)
-      await Project.update(card, issue.created_at, $labeled(config.label.awaiting) ? 'awaiting' : (issue.assignees.length ? 'assigned' : 'new'))
-    }
-  }
 }
 
 /*
@@ -376,8 +188,6 @@ octokit.hook.wrap('request', async (request, options) => {
 async function run(): Promise<void> {
   try {
     if (!owner || !repo) throw new Error('No repository found')
-
-    await Project.load()
 
     switch (context.eventName) {
       case 'issues': {

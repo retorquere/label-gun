@@ -62,36 +62,4 @@ export const config = {
     // default: "all", when dispatching, run for this issue state
     state: getEnum('issue.state', ['all', 'open', 'closed']) as 'all' | 'open' | 'closed',
   },
-
-  project: {
-    // URL of project to update
-    url: core.getInput('project.url'),
-
-    // use this token for project updates. Will use the general token if missing, but the default github action token does not have the permissions required to update projects
-    token: core.getInput('project.token') || core.getInput('token'),
-
-    card: {
-      status: {
-        // default: "Backlog", project card state for open, unassigned issues
-        new: core.getInput('project.card.status.new'),
-
-        // default: "In progress", project card state for open, assigned issues
-        assigned: core.getInput('project.card.status.assigned'),
-
-        // default: "Awaiting user input", project card state for open issues awaiting user feedback
-        awaiting: core.getInput('project.card.status.awaiting'),
-      },
-
-      field: {
-        // default: "Start date", project field to note start date
-        startDate: core.getInput('project.card.field.start-date'),
-
-        // default: "End date", project field to note last active date
-        endDate: core.getInput('project.card.field.end-date'),
-
-        // default: "Status", project field for status
-        status: core.getInput('project.card.field.status'),
-      },
-    },
-  },
 }
