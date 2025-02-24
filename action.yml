@@ -28,11 +28,6 @@ inputs:
   log.label:
     description: tag issues with missing log ID with this label
 
-  user.assign:
-    description: assign active issues to this contributor when running the action manually
-  user.bots:
-    description: these user logins are actually bots
-
   verbose:
     description: log activity
 
@@ -40,6 +35,11 @@ inputs:
     description: when dispatching, run for this issue state
     default: 'all'
 
+outputs:
+  issue:
+    description: Issue number
+  state:
+    description: issue state. One of 'in-progress', 'awaiting', 'closed' or 'unmanaged'
 runs:
   using: 'node20'
   main: 'dist/index.js'

@@ -47,14 +47,6 @@ export const config = {
     // tag issues with missing log ID with this label
     label: core.getInput('log.label'),
   },
-
-  user: {
-    // assign active issues to this contributor when running the action manually
-    assign: core.getInput('user.assign'),
-
-    // these user logins are actually bots
-    bots: core.getInput('user.bots').split(',').map(_ => _.trim()).filter(_ => _),
-  },
   // log activity
   verbose: getBool('verbose', 'false'),
 
