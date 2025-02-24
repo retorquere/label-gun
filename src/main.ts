@@ -144,7 +144,7 @@ async function update(issue: Issue, body: string): Promise<void> {
       await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees })
     }
 
-    setState('closed')
+    setState(managed ? 'closed' : 'unmanaged')
     return
   }
 
@@ -157,7 +157,7 @@ async function update(issue: Issue, body: string): Promise<void> {
       setState('unmanaged')
     }
 
-    if (!sender.bot && !issue.assignees.length) {
+    if (!sender.bot && !issue.assignees.length && context.payload.action !== 'opened') {
       report('assigning active issue to', sender.login)
       await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [sender.login] })
     }
@@ -178,7 +178,10 @@ async function update(issue: Issue, body: string): Promise<void> {
     }
     else if (context.payload.action !== 'edited' && issue.state === 'closed') { // user commented on closed issue
       await label.set(config.label.reopened)
+      await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
     }
+
+    if (sender.log.present) await label.remove(config.log.label)
 
     if (sender.log.needed !== sender.log.present) {
       await label.set(config.log.label)
@@ -193,19 +196,15 @@ async function update(issue: Issue, body: string): Promise<void> {
       }
       setState('awaiting')
     }
+    else if (context.payload.action !== 'edited') {
+      await label.remove(config.label.awaiting)
+      setState('in-progress')
+    }
+    else if (label.has(config.label.awaiting)) {
+      setState('awaiting')
+    }
     else {
-      if (sender.log.present) await label.remove(config.log.label)
-
-      if (context.payload.action !== 'edited') {
-        await label.remove(config.label.awaiting)
-        setState('in-progress')
-      }
-      else if (label.has(config.label.awaiting)) {
-        setState('awaiting')
-      }
-      else {
-        setState('in-progress')
-      }
+      setState('in-progress')
     }
   }
 }

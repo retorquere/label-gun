@@ -23981,7 +23981,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         report("unassigning issue");
         await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees });
       }
-      setState("closed");
+      setState(managed ? "closed" : "unmanaged");
       return;
     }
     if (sender.owner) {
@@ -23991,7 +23991,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       } else {
         setState("unmanaged");
       }
-      if (!sender.bot && !issue.assignees.length) {
+      if (!sender.bot && !issue.assignees.length && import_github.context.payload.action !== "opened") {
         report("assigning active issue to", sender.login);
         await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [sender.login] });
       }
@@ -24010,7 +24010,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
       } else if (import_github.context.payload.action !== "edited" && issue.state === "closed") {
         await label.set(config.label.reopened);
+        await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
       }
+      if (sender.log.present) await label.remove(config.log.label);
       if (sender.log.needed !== sender.log.present) {
         await label.set(config.log.label);
         await label.set(config.label.awaiting);
@@ -24023,16 +24025,13 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
           });
         }
         setState("awaiting");
+      } else if (import_github.context.payload.action !== "edited") {
+        await label.remove(config.label.awaiting);
+        setState("in-progress");
+      } else if (label.has(config.label.awaiting)) {
+        setState("awaiting");
       } else {
-        if (sender.log.present) await label.remove(config.log.label);
-        if (import_github.context.payload.action !== "edited") {
-          await label.remove(config.label.awaiting);
-          setState("in-progress");
-        } else if (label.has(config.label.awaiting)) {
-          setState("awaiting");
-        } else {
-          setState("in-progress");
-        }
+        setState("in-progress");
       }
     }
   }
