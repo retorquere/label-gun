@@ -1,6 +1,6 @@
 {
   "name": "label-gun",
-  "version": "4.0.2",
+  "version": "4.0.3",
   "private": true,
   "description": "automatic issue labeler",
   "main": "dist/index.js",
