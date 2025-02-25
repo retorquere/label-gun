@@ -23973,7 +23973,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       }
     });
     if (!managed || sender.owner && issue.state === "closed") {
-      report("unlabeling", managed ? "closed" : "unmanaged", "issue");
+      show("unlabeling issue", { managed, sender, state: issue.state });
       await label.remove(config.label.awaiting);
       await label.remove(config.log.label);
       const assignees = issue.assignees.map((assignee) => assignee.login);

@@ -134,7 +134,7 @@ async function update(issue: Issue, body: string): Promise<void> {
   })
 
   if (!managed || (sender.owner && issue.state === 'closed')) {
-    report('unlabeling', managed ? 'closed' : 'unmanaged', 'issue')
+    show('unlabeling issue', { managed, sender, state: issue.state })
     await label.remove(config.label.awaiting)
     await label.remove(config.log.label)
 
