@@ -48,6 +48,7 @@ const Config = new class {
     'log.regex': `core.getInput('log.regex') ? new RegExp(core.getInput('log.regex')) : (undefined as unknown as RegExp)`,
     'issue.state': `getEnum('issue.state', ['all', 'open', 'closed']) as 'all' | 'open' | 'closed'`,
     'verbose': `getBool('verbose', 'false')`,
+    'assign': `getBool('assign', 'false')`,
   }
   getter(path, k) {
     k = `${path}.${k}`.substring(1)

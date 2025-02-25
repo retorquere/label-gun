@@ -31,6 +31,9 @@ inputs:
   verbose:
     description: log activity
 
+  assign:
+    description: assign issue to owner on owner interaction
+
   issue.state:
     description: when dispatching, run for this issue state
     default: 'all'

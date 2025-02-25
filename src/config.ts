@@ -50,6 +50,9 @@ export const config = {
   // log activity
   verbose: getBool('verbose', 'false'),
 
+  // assign issue to owner on owner interaction
+  assign: getBool('assign', 'false'),
+
   issue: {
     // default: "all", when dispatching, run for this issue state
     state: getEnum('issue.state', ['all', 'open', 'closed']) as 'all' | 'open' | 'closed',

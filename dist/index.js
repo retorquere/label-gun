@@ -23862,6 +23862,8 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     },
     // log activity
     verbose: getBool("verbose", "false"),
+    // assign issue to owner on owner interaction
+    assign: getBool("assign", "false"),
     issue: {
       // default: "all", when dispatching, run for this issue state
       state: getEnum("issue.state", ["all", "open", "closed"])
@@ -23972,29 +23974,23 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         active: label.has(config.label.active)
       }
     });
+    if (config.assign && sender.owner && !sender.bot && !issue.assignees.length && issue.state !== "closed") {
+      report("assigning active issue to", sender.login);
+      await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [sender.login] });
+    }
     if (!managed || sender.owner && issue.state === "closed") {
+      if (config.assign && issue.state === "closed" && issue.assignees.length) {
+        const assignees = issue.assignees.map((assignee) => assignee.login);
+        report("unassigning", assignees);
+        await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees });
+      }
       show("unlabeling issue", { managed, sender, state: issue.state });
       await label.remove(config.label.awaiting);
       await label.remove(config.log.label);
-      const assignees = issue.assignees.map((assignee) => assignee.login);
-      if (assignees.length) {
-        report("unassigning issue");
-        await octokit.rest.issues.removeAssignees({ owner, repo, issue_number: issue.number, assignees });
-      }
-      setState(managed ? "closed" : "unmanaged");
       return;
     }
     if (sender.owner) {
-      if (Users.users) {
-        await label.set(config.label.awaiting);
-        setState("awaiting");
-      } else {
-        setState("unmanaged");
-      }
-      if (!sender.bot && !issue.assignees.length && import_github.context.payload.action !== "opened") {
-        report("assigning active issue to", sender.login);
-        await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [sender.login] });
-      }
+      if (Users.users) await label.set(config.label.awaiting);
     } else if (sender.user) {
       if (import_github.context.payload.action === "closed") {
         if (!label.has(config.label.reopened)) {
