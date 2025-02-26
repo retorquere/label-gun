@@ -7,9 +7,10 @@ from easydict import EasyDict
 import re
 import pickledb
 from types import SimpleNamespace
+import shlex
 
 def run(cmd):
-  print(' '.join(cmd))
+  print(' '.join([shlex.quote(c) for c in cmd]))
   result = subprocess.run(cmd, check=True, capture_output=True, text=True)
   return result.stdout
 
@@ -19,7 +20,8 @@ def sanitize_key(key):
   return key
 
 def easydict_hook(d):
-  return EasyDict({sanitize_key(k): v for k, v in d.items()})
+  #return EasyDict({sanitize_key(k): v for k, v in d.items()})
+  return EasyDict(d)
 
 def todict(d):
   if isinstance(d, EasyDict):
@@ -38,15 +40,28 @@ yaml.add_representer(EasyDict, lambda dumper, data: dumper.represent_dict(todict
 
 ###################################################
 limit = '1000'
-Repo = 'retorquere/zotero-better-bibtex'
-Project = SimpleNamespace(number=5)
-Project.name = json.loads(run(['gh', 'project', 'view', str(Project.number), '--owner', Repo.split('/')[0], '--format', 'json']), object_hook=easydict_hook).title
+Repo = 'retorquere/zotero-better-bibtex'.lower()
+class Project:
+  def __init__(self, number)
+    project = json.loads(run(['gh', 'project', 'view', str(Project.number), '--owner', Repo.split('/')[0], '--format', 'json']), object_hook=easydict_hook)
+    for key, value in project.items():
+      setattr(self, key, value)
+    self.fields = json.loads(run(['gh', 'project', 'field-list', str(Project.number), '--owner', Repo.split('/')[0], '--format', 'json']), object_hook=easydict_hook).fields
+    self.endDate = next((f.id for f in Project.fields if f.name == 'End date'))
+    self.startDate = next((f.id for f in Project.fields if f.name == 'Start date'))
+
+  def status(self, label):
+    for f in self.fields:
+      if f.name.lower() == 'status':
+        return next((option.id for option in f.options if f.option.name.lower() == label.lower()), None)
+    return None
+Project = Project(5)
 ###################################################
 
 result = run(['gh', 'project', 'item-list', str(Project.number), '--format', 'json', '--owner', '@me', '--limit', limit])
 cards = json.loads(result, object_hook=easydict_hook).items
-#for card in cards:
-#  print(yaml.dump(card))
+for card in cards:
+  card.repository = card.repository.replace('https://github.com/', '').lower()
 
 class UserTracker:
   def __init__(self):
@@ -93,15 +108,15 @@ for issue in issues:
 
   labels = [label.name for label in issue.labels]
 
-  start_date = issue.createdAt
-  end_date = issue.createdAt
+  start_date = issue.createdAt.split('T')[0]
+  end_date = issue.createdAt.split('T')[0]
   user = UserTracker()
   user.issue(issue)
   for comment in issue.comments:
-    end_date = comment.createdAt
+    end_date = comment.createdAt.split('T')[0]
     user.comment(comment)
 
-  card = next((c for c in cards if c.repository == Repo and c.number == issue.number), None)
+  card = next((c for c in cards if c.repository == Repo and c.content.number == issue.number), None)
 
   edits = []
 
@@ -113,25 +128,22 @@ for issue in issues:
   if user.owner and len(issue.assignees) == 0:
     edits += ['--add-assignee', 'retorquere']
 
-  if not card:
-    edits += ['--add-project', Project.name]
-
   if len(edits) > 0:
     run(['gh', 'issue', 'edit', f'{issue.number}', '--repo', Repo] + edits)
 
   if not card:
     result = run(['gh', 'project', 'item-add', str(Project.number), '--owner', Repo.split('/')[0], '--url', f'https://github.com/{Repo}/issues/{issue.number}', '--format', 'json'])
     item_id = json.loads(result, object_hook=easydict_hook).id
-    card = EasyDict({ 'id': item_id, 'content': { 'repository': Repo, 'number': issue.number }, 'end_date': None, 'start_date': None, 'status': None })
+    card = EasyDict({ 'id': item_id, 'content': EasyDict({ 'repository': Repo, 'number': issue.number }), 'end_date': None, 'start_date': None, 'status': None })
     cards.append(card)
 
-  #if issue.createdAt != card.start_date:
-  #    gh project item-edit card.id --project-number str(Project.number) --owner @me --field "Start Date" --value start_date
-  #if endDate != card.end_date:
-  #    gh project item-edit card.id --project-number str(Project.number) --owner @me --field "End Date" --value end_date
-  #if user.last == 'owner' and len([pi for pi in issue.projectItems if pi.title == Project.name and pi.status.name == 'In progress']) == 0::
+  print(yaml.dump(card))
+  if start_date != card.get(Project.startDate):
+    run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.startDate, '--date', start_date])
+    break
+  if start_date != card.get(Project.endDate):
+    run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.endDate, '--date', end_date])
+    break
+  #if user.last == 'owner' and len([pi for pi in issue.projectItems if pi.title == Project.title and pi.status.name == 'In progress']) == 0::
   #  edits += ['--field', 'Status', '--value', 'In progress']
-  print('** issue', yaml.dump(issue))
-  print('** card', yaml.dump(card))
-  break
 
