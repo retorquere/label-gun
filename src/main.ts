@@ -111,6 +111,7 @@ async function update(issue: Issue, body: string): Promise<void> {
     needed: !!config.log.regex && sender.user && context.payload.action === 'opened',
     present: config.log.regex ? !!body.match(config.log.regex) : false,
   }
+  report('sender:', sender)
 
   const label = new Labels(issue)
 
@@ -175,7 +176,7 @@ async function update(issue: Issue, body: string): Promise<void> {
 
     if (sender.log.present) await label.remove(config.log.label)
 
-    if (sender.log.needed !== sender.log.present) {
+    if (sender.log.needed && !sender.log.present) {
       await label.set(config.log.label)
       await label.set(config.label.awaiting)
       if (config.log.message) {

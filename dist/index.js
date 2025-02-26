@@ -20805,9 +20805,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
   });
 
-  // node_modules/@octokit/graphql/dist-node/index.js
+  // node_modules/@octokit/core/node_modules/@octokit/graphql/dist-node/index.js
   var require_dist_node2 = __commonJS({
-    "node_modules/@octokit/graphql/dist-node/index.js"(exports, module) {
+    "node_modules/@octokit/core/node_modules/@octokit/graphql/dist-node/index.js"(exports, module) {
       "use strict";
       var __defProp2 = Object.defineProperty;
       var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
@@ -23957,6 +23957,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       needed: !!config.log.regex && sender.user && import_github.context.payload.action === "opened",
       present: config.log.regex ? !!body.match(config.log.regex) : false
     };
+    report("sender:", sender);
     const label = new Labels(issue);
     const { data: comments } = await octokit.rest.issues.listComments({ owner, repo, issue_number: issue.number });
     for (const user of [issue.user.login].concat(comments.map((comment) => comment.user?.login || ""))) {
@@ -24009,7 +24010,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
       }
       if (sender.log.present) await label.remove(config.log.label);
-      if (sender.log.needed !== sender.log.present) {
+      if (sender.log.needed && !sender.log.present) {
         await label.set(config.log.label);
         await label.set(config.label.awaiting);
         if (config.log.message) {
