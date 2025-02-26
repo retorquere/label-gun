@@ -3,11 +3,12 @@
 import subprocess
 import json
 import yaml
-from easydict import EasyDict
 import re
 import pickledb
 from types import SimpleNamespace
 import shlex
+from datetime import datetime
+import sys
 
 def run(cmd):
   print(' '.join([shlex.quote(c) for c in cmd]))
@@ -19,49 +20,46 @@ def sanitize_key(key):
   key = re.sub(r'_+', '_', key)
   return key
 
-def easydict_hook(d):
-  #return EasyDict({sanitize_key(k): v for k, v in d.items()})
-  return EasyDict(d)
+def object_hook(d):
+  return SimpleNamespace(**{sanitize_key(k): v for k, v in d.items()})
 
-def todict(d):
-  if isinstance(d, EasyDict):
-    d = {k: todict(v) for k, v in d.items()}
-  elif isinstance(d, list):
-    d = [todict(i) for i in d]
-  return d
 def str_presenter(dumper, data):
-  if len(data.splitlines()) > 1 or '\n' in data:  
+  if len(data.splitlines()) > 1 or '\n' in data:
     text_list = [line.rstrip() for line in data.splitlines()]
     fixed_data = "\n".join(text_list)
     return dumper.represent_scalar('tag:yaml.org,2002:str', fixed_data, style='|')
   return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 yaml.add_representer(str, str_presenter)
-yaml.add_representer(EasyDict, lambda dumper, data: dumper.represent_dict(todict(data)))
+yaml.add_representer(SimpleNamespace, lambda dumper, data: dumper.represent_dict(vars(data)))
 
 ###################################################
 limit = '1000'
-Repo = 'retorquere/zotero-better-bibtex'.lower()
 class Project:
-  def __init__(self, number)
-    project = json.loads(run(['gh', 'project', 'view', str(Project.number), '--owner', Repo.split('/')[0], '--format', 'json']), object_hook=easydict_hook)
-    for key, value in project.items():
+  def __init__(self, number):
+    project = json.loads(run(['gh', 'project', 'view', str(number), '--owner', '@me', '--format', 'json']), object_hook=object_hook)
+    for key, value in vars(project).items():
       setattr(self, key, value)
-    self.fields = json.loads(run(['gh', 'project', 'field-list', str(Project.number), '--owner', Repo.split('/')[0], '--format', 'json']), object_hook=easydict_hook).fields
-    self.endDate = next((f.id for f in Project.fields if f.name == 'End date'))
-    self.startDate = next((f.id for f in Project.fields if f.name == 'Start date'))
+
+    self.fields = json.loads(run(['gh', 'project', 'field-list', str(number), '--owner', '@me', '--format', 'json']), object_hook=object_hook).fields
+    self.field = SimpleNamespace(
+      end_date = next((f.id for f in self.fields if f.name == 'End date')),
+      start_date = next((f.id for f in self.fields if f.name == 'Start date')),
+      status = next((f.id for f in self.fields if f.name == 'Status')),
+      waiting = next((f.id for f in self.fields if f.name == 'Waiting'))
+    )
+
+    result = run(['gh', 'project', 'item-list', str(number), '--format', 'json', '--owner', '@me', '--limit', limit])
+    self.cards = json.loads(result, object_hook=object_hook).items
+    for card in self.cards:
+      card.repository = card.repository.replace('https://github.com/', '').lower()
 
   def status(self, label):
     for f in self.fields:
       if f.name.lower() == 'status':
-        return next((option.id for option in f.options if f.option.name.lower() == label.lower()), None)
+        return next((option.id for option in f.options if option.name.lower() == label.lower()), None)
     return None
 Project = Project(5)
 ###################################################
-
-result = run(['gh', 'project', 'item-list', str(Project.number), '--format', 'json', '--owner', '@me', '--limit', limit])
-cards = json.loads(result, object_hook=easydict_hook).items
-for card in cards:
-  card.repository = card.repository.replace('https://github.com/', '').lower()
 
 class UserTracker:
   def __init__(self):
@@ -79,7 +77,7 @@ class UserTracker:
       if issue.author.is_bot:
         self.cache.set(issue.author.login, 'owner')
       else:
-        result = run(['gh', 'api', f'repos/{Repo}/issues/{issue.number}', '--jq', '.author_association'])
+        result = run(['gh', 'api', f'repos/{repo}/issues/{issue.number}', '--jq', '.author_association'])
         status = result.strip()
         self.cache.set(issue.author.login, 'owner' if status == 'OWNER' else 'user')
       self.cache.save()
@@ -94,56 +92,64 @@ class UserTracker:
       self.cache.save()
     self.ping(self.cache.get(comment.author.login))
 
-result = run(['gh', 'issue', 'list', '--state', 'open', '--repo', Repo, '--json', 'assignees,author,createdAt,id,number,labels,projectItems,state,comments', '--limit', limit])
-issues = json.loads(result, object_hook=easydict_hook)
-print(len(issues), 'issues')
-for issue in issues:
-  entry = EasyDict({
-    'number': issue.number,
-    'repo': Repo,
-    'start': issue.createdAt,
-    'end': issue.createdAt,
-    'status': None,
-  })
+def seed(repo):
+  repo = repo.lower()
+  result = run(['gh', 'issue', 'list', '--state', 'open', '--repo', repo, '--json', 'assignees,author,createdAt,id,number,labels,projectItems,state,comments', '--limit', limit])
+  issues = json.loads(result, object_hook=object_hook)
+  print(len(issues), 'issues')
+  for issue in issues:
+    labels = [label.name for label in issue.labels]
 
-  labels = [label.name for label in issue.labels]
+    start_date = issue.createdAt.split('T')[0]
+    end_date = issue.createdAt.split('T')[0]
+    user = UserTracker()
+    user.issue(issue)
+    for comment in issue.comments:
+      end_date = comment.createdAt.split('T')[0]
+      user.comment(comment)
 
-  start_date = issue.createdAt.split('T')[0]
-  end_date = issue.createdAt.split('T')[0]
-  user = UserTracker()
-  user.issue(issue)
-  for comment in issue.comments:
-    end_date = comment.createdAt.split('T')[0]
-    user.comment(comment)
+    card = next((c for c in Project.cards if c.repository == repo and c.content.number == issue.number), None)
 
-  card = next((c for c in cards if c.repository == Repo and c.content.number == issue.number), None)
+    edits = []
 
-  edits = []
+    if user.last == 'user' and 'awaiting-user-feedback' in labels:
+      edits += ['--remove-label', 'awaiting-user-feedback']
+    # only do this manually
+    #elif user.last == 'owner' and user.user and 'awaiting-user-feedback' not in labels:
+    #  edits == ['--add-label', 'awaiting-user-feedback']
 
-  if user.last == 'user' and 'awaiting-user-feedback' in labels:
-    edits += ['--remove-label', 'awaiting-user-feedback']
-  elif user.last == 'owner' and user.user and 'awaiting-user-feedback' not in labels:
-    edits == ['--add-label', 'awaiting-user-feedback']
+    if user.owner and len(issue.assignees) == 0:
+      edits += ['--add-assignee', 'retorquere']
 
-  if user.owner and len(issue.assignees) == 0:
-    edits += ['--add-assignee', 'retorquere']
+    if len(edits) > 0:
+      run(['gh', 'issue', 'edit', f'{issue.number}', '--repo', repo] + edits)
 
-  if len(edits) > 0:
-    run(['gh', 'issue', 'edit', f'{issue.number}', '--repo', Repo] + edits)
+    if not card:
+      result = run(['gh', 'project', 'item-add', str(Project.number), '--owner', '@me', '--url', f'https://github.com/{repo}/issues/{issue.number}', '--format', 'json'])
+      item_id = json.loads(result, object_hook=object_hook).id
+      card = SimpleNamespace(id=item_id, content=SimpleNamespace(repository=repo, number=issue.number), end_date=None, start_date=None, status=None)
 
-  if not card:
-    result = run(['gh', 'project', 'item-add', str(Project.number), '--owner', Repo.split('/')[0], '--url', f'https://github.com/{Repo}/issues/{issue.number}', '--format', 'json'])
-    item_id = json.loads(result, object_hook=easydict_hook).id
-    card = EasyDict({ 'id': item_id, 'content': EasyDict({ 'repository': Repo, 'number': issue.number }), 'end_date': None, 'start_date': None, 'status': None })
-    cards.append(card)
+    if start_date != getattr(card, 'start_date', None):
+      run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.start_date, '--date', start_date])
+    if end_date != getattr(card, 'end_date', None):
+      run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.end_date, '--date', end_date])
 
-  print(yaml.dump(card))
-  if start_date != card.get(Project.startDate):
-    run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.startDate, '--date', start_date])
-    break
-  if start_date != card.get(Project.endDate):
-    run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.endDate, '--date', end_date])
-    break
-  #if user.last == 'owner' and len([pi for pi in issue.projectItems if pi.title == Project.title and pi.status.name == 'In progress']) == 0::
-  #  edits += ['--field', 'Status', '--value', 'In progress']
+    if user.user and 'awaiting-user-feedback' in labels:
+      status = 'Awaiting user input'
+    elif not user.user or len(issue.assignees) > 0:
+      status = 'In progress'
+    elif not user.owner:
+      status = 'To triage'
+    else:
+      status = 'Backlog'
+
+    if card.status != status:
+      run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.status, '--single-select-option-id', Project.status(status)])
+
+    waiting = (datetime.today().date() - datetime.strptime(end_date, "%Y-%m-%d").date()).days + 1
+    if getattr(card, 'waiting', None) != waiting:
+      run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.waiting, '--number', str(waiting)])
+
+for repo in sys.argv[1:]:
+  seed(repo)
 
