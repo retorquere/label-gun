@@ -12,7 +12,11 @@ import sys
 
 def run(cmd):
   print(' '.join([shlex.quote(c) for c in cmd]))
-  result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+  result = subprocess.run(cmd, capture_output=True, text=True)
+  if result.returncode != 0:
+    print(f"Command failed with exit code {result.returncode}")
+    print(f"Error message: {result.stderr}")
+    sys.exit(1)
   return result.stdout
 
 def sanitize_key(key):
@@ -150,6 +154,38 @@ def seed(repo):
     if getattr(card, 'waiting', None) != waiting:
       run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.waiting, '--number', str(waiting)])
 
-for repo in sys.argv[1:]:
+repos = [
+  'bibtex-parser',
+  'generator-zotero-plugin',
+  'label-gun',
+  'zotero-better-bibtex',
+  'zotero-cite-columns',
+  'zotero-clear-journal-abbrev',
+  'zotero-date-from-last-modified',
+  'zotero-open-pdf',
+  'zotero-report-customizer',
+  'zotero-uid-column',
+  'unicode2latex',
+  'zotero-better-bibtex',
+  'zotero-cite-columns',
+  'zotero-clear-journal-abbrev',
+  'zotero-date-from-last-modified',
+  'zotero-deb',
+  'zotero-debug-log',
+  'zotero-file-hierarchy',
+  'zotero-folder-import',
+  'zotero-link-local-files',
+  'zotero-opds',
+  'zotero-opds-ts',
+  'zotero-open-pdf',
+  'zotero-plugin',
+  'zotero-pmcid-fetcher',
+  'zotero-report-customizer',
+  'zotero-sync',
+  'zotero-uid-column',
+]
+for repo in repos:
+  if '/' not in repo:
+    repo = '/'.join(['retorquere', repo])
   seed(repo)
 
