@@ -23883,7 +23883,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   };
   var owner = import_github.context.payload.repository?.owner?.login || "";
   var repo = import_github.context.payload.repository?.name || "";
-  function setState(state) {
+  function setStatus(state) {
     core2.setOutput("state", state);
   }
   function setIssue(issue) {
@@ -23965,6 +23965,15 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (Users.users && Users.owners) break;
     }
     const managed = Users.users && !label.has(config.label.exempt) && (!config.label.active || label.has(config.label.active));
+    if (Users.users && label.has(config.label.awaiting)) {
+      setStatus("awaiting");
+    } else if (!Users.users || issue.assignees.length) {
+      setStatus("in-progress");
+    } else if (!Users.owners) {
+      setStatus("new");
+    } else {
+      setStatus("backlog");
+    }
     show(`entering issue handler for ${sender.owner ? "owner" : "user"} activity`, {
       managed,
       sender,
@@ -24021,14 +24030,14 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
             body: config.log.message.replace("{{username}}", sender.login)
           });
         }
-        setState("awaiting");
+        setStatus("awaiting");
       } else if (import_github.context.payload.action !== "edited") {
         await label.remove(config.label.awaiting);
-        setState("in-progress");
+        setStatus("in-progress");
       } else if (label.has(config.label.awaiting)) {
-        setState("awaiting");
+        setStatus("awaiting");
       } else {
-        setState("in-progress");
+        setStatus("in-progress");
       }
     }
   }

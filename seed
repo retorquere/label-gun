@@ -49,7 +49,7 @@ class Project:
       end_date = next((f.id for f in self.fields if f.name == 'End date')),
       start_date = next((f.id for f in self.fields if f.name == 'Start date')),
       status = next((f.id for f in self.fields if f.name == 'Status')),
-      waiting = next((f.id for f in self.fields if f.name == 'Waiting'))
+      OP = next((f.id for f in self.fields if f.name == 'OP'))
     )
 
     result = run(['gh', 'project', 'item-list', str(number), '--format', 'json', '--owner', '@me', '--limit', limit])
@@ -150,9 +150,9 @@ def seed(repo):
     if card.status != status:
       run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.status, '--single-select-option-id', Project.status(status)])
 
-    waiting = (datetime.today().date() - datetime.strptime(end_date, "%Y-%m-%d").date()).days + 1
-    if getattr(card, 'waiting', None) != waiting:
-      run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.waiting, '--number', str(waiting)])
+    OP = issue.author.login
+    if getattr(card, 'op', None) != OP:
+      run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.OP, '--text', OP])
 
 repos = [
   'bibtex-parser',
@@ -178,11 +178,13 @@ repos = [
   'zotero-opds',
   'zotero-opds-ts',
   'zotero-open-pdf',
+  'zotero-odf-scan-plugin',
   'zotero-plugin',
   'zotero-pmcid-fetcher',
   'zotero-report-customizer',
   'zotero-sync',
   'zotero-uid-column',
+  'PubPeerFoundation/pubpeer_zotero_plugin'
 ]
 for repo in repos:
   if '/' not in repo:

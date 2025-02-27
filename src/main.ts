@@ -19,7 +19,7 @@ const sender = {
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
-function setState(state: 'in-progress' | 'awaiting' | 'closed' | 'unmanaged') {
+function setStatus(state: 'awaiting' | 'in-progress' | 'new' | 'backlog') {
   core.setOutput('state', state)
 }
 function setIssue(issue: Issue) {
@@ -123,6 +123,19 @@ async function update(issue: Issue, body: string): Promise<void> {
 
   const managed = Users.users && !label.has(config.label.exempt) && (!config.label.active || label.has(config.label.active))
 
+  if (Users.users && label.has(config.label.awaiting)) {
+    setStatus('awaiting')
+  }
+  else if (!Users.users || issue.assignees.length) {
+    setStatus('in-progress')
+  }
+  else if (!Users.owners) {
+    setStatus('new')
+  }
+  else {
+    setStatus('backlog')
+  }
+
   show(`entering issue handler for ${sender.owner ? 'owner' : 'user'} activity`, {
     managed,
     sender,
@@ -187,17 +200,17 @@ async function update(issue: Issue, body: string): Promise<void> {
           body: config.log.message.replace('{{username}}', sender.login),
         })
       }
-      setState('awaiting')
+      setStatus('awaiting')
     }
     else if (context.payload.action !== 'edited') {
       await label.remove(config.label.awaiting)
-      setState('in-progress')
+      setStatus('in-progress')
     }
     else if (label.has(config.label.awaiting)) {
-      setState('awaiting')
+      setStatus('awaiting')
     }
     else {
-      setState('in-progress')
+      setStatus('in-progress')
     }
   }
 }
