@@ -19,8 +19,8 @@ const sender = {
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
-function setStatus(state: 'awaiting' | 'in-progress' | 'new' | 'backlog') {
-  core.setOutput('state', state)
+function setStatus(state: 'awaiting' | 'inProgress' | 'new' | 'backlog') {
+  core.setOutput('state', config.project.state[state])
 }
 function setIssue(issue: Issue) {
   core.setOutput('issue', `${issue.number}`)
@@ -127,7 +127,7 @@ async function update(issue: Issue, body: string): Promise<void> {
     setStatus('awaiting')
   }
   else if (!Users.users || issue.assignees.length) {
-    setStatus('in-progress')
+    setStatus('inProgress')
   }
   else if (!Users.owners) {
     setStatus('new')
@@ -204,13 +204,13 @@ async function update(issue: Issue, body: string): Promise<void> {
     }
     else if (context.payload.action !== 'edited') {
       await label.remove(config.label.awaiting)
-      setStatus('in-progress')
+      setStatus('inProgress')
     }
     else if (label.has(config.label.awaiting)) {
       setStatus('awaiting')
     }
     else {
-      setStatus('in-progress')
+      setStatus('inProgress')
     }
   }
 }

@@ -53,8 +53,19 @@ export const config = {
   // assign issue to owner on owner interaction
   assign: getBool('assign', 'false'),
 
-  issue: {
-    // default: "all", when dispatching, run for this issue state
-    state: getEnum('issue.state', ['all', 'open', 'closed']) as 'all' | 'open' | 'closed',
+  project: {
+    state: {
+      // default: "Awaiting user input", Status to output for issues that are waiting for feedback
+      awaiting: core.getInput('project.state.awaiting'),
+
+      // default: "In progress", Status to output for issues that are in progress
+      inProgress: core.getInput('project.state.in-progress'),
+
+      // default: "To triage", Status to output for issues that are new
+      new: core.getInput('project.state.new'),
+
+      // default: "Backlog", Status to output for issues that have been seen by a repo owner but not acted on
+      backlog: core.getInput('project.state.backlog'),
+    },
   },
 }

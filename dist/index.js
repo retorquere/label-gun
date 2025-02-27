@@ -23864,9 +23864,17 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     verbose: getBool("verbose", "false"),
     // assign issue to owner on owner interaction
     assign: getBool("assign", "false"),
-    issue: {
-      // default: "all", when dispatching, run for this issue state
-      state: getEnum("issue.state", ["all", "open", "closed"])
+    project: {
+      state: {
+        // default: "Awaiting user input", Status to output for issues that are waiting for feedback
+        awaiting: core.getInput("project.state.awaiting"),
+        // default: "In progress", Status to output for issues that are in progress
+        inProgress: core.getInput("project.state.in-progress"),
+        // default: "To triage", Status to output for issues that are new
+        new: core.getInput("project.state.new"),
+        // default: "Backlog", Status to output for issues that have been seen by a repo owner but not acted on
+        backlog: core.getInput("project.state.backlog")
+      }
     }
   };
 
@@ -23884,7 +23892,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   var owner = import_github.context.payload.repository?.owner?.login || "";
   var repo = import_github.context.payload.repository?.name || "";
   function setStatus(state) {
-    core2.setOutput("state", state);
+    core2.setOutput("state", config.project.state[state]);
   }
   function setIssue(issue) {
     core2.setOutput("issue", `${issue.number}`);
@@ -23968,7 +23976,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     if (Users.users && label.has(config.label.awaiting)) {
       setStatus("awaiting");
     } else if (!Users.users || issue.assignees.length) {
-      setStatus("in-progress");
+      setStatus("inProgress");
     } else if (!Users.owners) {
       setStatus("new");
     } else {
@@ -24033,11 +24041,11 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         setStatus("awaiting");
       } else if (import_github.context.payload.action !== "edited") {
         await label.remove(config.label.awaiting);
-        setStatus("in-progress");
+        setStatus("inProgress");
       } else if (label.has(config.label.awaiting)) {
         setStatus("awaiting");
       } else {
-        setStatus("in-progress");
+        setStatus("inProgress");
       }
     }
   }
