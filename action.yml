@@ -17,6 +17,8 @@ inputs:
     description: ignore issues with this tag
   label.reopened:
     description: re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
+  label.blocked:
+    description: labels for blocked issues
 
   close.message:
     description: when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
@@ -34,6 +36,9 @@ inputs:
   assign:
     description: assign issue to owner on owner interaction
 
+  project.state.blocked:
+    description: Status to output for issues that have an unmet dependency
+    default: 'Blocked'
   project.state.awaiting:
     description: Status to output for issues that are waiting for feedback
     default: 'Awaiting user input'

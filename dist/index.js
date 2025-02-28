@@ -23846,7 +23846,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       // ignore issues with this tag
       exempt: core.getInput("label.exempt"),
       // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
-      reopened: core.getInput("label.reopened")
+      reopened: core.getInput("label.reopened"),
+      // labels for blocked issues
+      blocked: core.getInput("label.blocked").split(",").map((l) => l.trim()).filter((_) => _)
     },
     close: {
       // when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
@@ -23866,10 +23868,12 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     assign: getBool("assign", "false"),
     project: {
       state: {
+        // default: "Blocked", Status to output for issues that have an unmet dependency
+        blocked: core.getInput("project.state.blocked"),
         // default: "Awaiting user input", Status to output for issues that are waiting for feedback
         awaiting: core.getInput("project.state.awaiting"),
         // default: "In progress", Status to output for issues that are in progress
-        inProgress: core.getInput("project.state.in-progress"),
+        "in-progress": core.getInput("project.state.in-progress"),
         // default: "To triage", Status to output for issues that are new
         new: core.getInput("project.state.new"),
         // default: "Backlog", Status to output for issues that have been seen by a repo owner but not acted on
@@ -23892,7 +23896,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   var owner = import_github.context.payload.repository?.owner?.login || "";
   var repo = import_github.context.payload.repository?.name || "";
   function setStatus(state) {
-    core2.setOutput("state", config.project.state[state]);
+    core2.setOutput("state", state ? config.project.state[state] : "");
   }
   function setIssue(issue) {
     core2.setOutput("issue", `${issue.number}`);
@@ -23973,10 +23977,12 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (Users.users && Users.owners) break;
     }
     const managed = Users.users && !label.has(config.label.exempt) && (!config.label.active || label.has(config.label.active));
-    if (Users.users && label.has(config.label.awaiting)) {
+    if (Users.users && config.label.blocked && label.has(...config.label.blocked)) {
+      setStatus("blocked");
+    } else if (Users.users && label.has(config.label.awaiting)) {
       setStatus("awaiting");
     } else if (!Users.users || issue.assignees.length) {
-      setStatus("inProgress");
+      setStatus("in-progress");
     } else if (!Users.owners) {
       setStatus("new");
     } else {
@@ -23995,6 +24001,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     if (config.assign && sender.owner && !sender.bot && !issue.assignees.length && issue.state !== "closed") {
       report("assigning active issue to", sender.login);
       await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [sender.login] });
+      setStatus("in-progress");
     }
     if (!managed || sender.owner && issue.state === "closed") {
       if (config.assign && issue.state === "closed" && issue.assignees.length) {
@@ -24005,10 +24012,12 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       show("unlabeling issue", { managed, sender, state: issue.state });
       await label.remove(config.label.awaiting);
       await label.remove(config.log.label);
+      setStatus(false);
       return;
     }
     if (sender.owner) {
       if (Users.users) await label.set(config.label.awaiting);
+      setStatus("awaiting");
     } else if (sender.user) {
       if (import_github.context.payload.action === "closed") {
         if (!label.has(config.label.reopened)) {
@@ -24021,10 +24030,12 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
               body: config.close.message.replace("{{username}}", sender.login)
             });
         }
+        setStatus("in-progress");
         await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
       } else if (import_github.context.payload.action !== "edited" && issue.state === "closed") {
         await label.set(config.label.reopened);
         await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
+        setStatus("in-progress");
       }
       if (sender.log.present) await label.remove(config.log.label);
       if (sender.log.needed && !sender.log.present) {
@@ -24041,11 +24052,11 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         setStatus("awaiting");
       } else if (import_github.context.payload.action !== "edited") {
         await label.remove(config.label.awaiting);
-        setStatus("inProgress");
+        setStatus("in-progress");
       } else if (label.has(config.label.awaiting)) {
         setStatus("awaiting");
       } else {
-        setStatus("inProgress");
+        setStatus("in-progress");
       }
     }
   }

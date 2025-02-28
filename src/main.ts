@@ -19,8 +19,8 @@ const sender = {
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
-function setStatus(state: 'awaiting' | 'inProgress' | 'new' | 'backlog') {
-  core.setOutput('state', config.project.state[state])
+function setStatus(state: false | 'blocked' | 'awaiting' | 'in-progress' | 'new' | 'backlog') {
+  core.setOutput('state', state ? config.project.state[state] : '')
 }
 function setIssue(issue: Issue) {
   core.setOutput('issue', `${issue.number}`)
@@ -123,11 +123,14 @@ async function update(issue: Issue, body: string): Promise<void> {
 
   const managed = Users.users && !label.has(config.label.exempt) && (!config.label.active || label.has(config.label.active))
 
-  if (Users.users && label.has(config.label.awaiting)) {
+  if (Users.users && config.label.blocked && label.has(...config.label.blocked)) {
+    setStatus('blocked')
+  }
+  else if (Users.users && label.has(config.label.awaiting)) {
     setStatus('awaiting')
   }
   else if (!Users.users || issue.assignees.length) {
-    setStatus('inProgress')
+    setStatus('in-progress')
   }
   else if (!Users.owners) {
     setStatus('new')
@@ -150,6 +153,7 @@ async function update(issue: Issue, body: string): Promise<void> {
   if (config.assign && sender.owner && !sender.bot && !issue.assignees.length && issue.state !== 'closed') {
     report('assigning active issue to', sender.login)
     await octokit.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [sender.login] })
+    setStatus('in-progress')
   }
 
   if (!managed || (sender.owner && issue.state === 'closed')) {
@@ -162,11 +166,14 @@ async function update(issue: Issue, body: string): Promise<void> {
     show('unlabeling issue', { managed, sender, state: issue.state })
     await label.remove(config.label.awaiting)
     await label.remove(config.log.label)
+
+    setStatus(false)
     return
   }
 
   if (sender.owner) {
     if (Users.users) await label.set(config.label.awaiting)
+    setStatus('awaiting')
   }
   else if (sender.user) {
     if (context.payload.action === 'closed') { // user closed the issue
@@ -180,11 +187,13 @@ async function update(issue: Issue, body: string): Promise<void> {
             body: config.close.message.replace('{{username}}', sender.login),
           })
       }
+      setStatus('in-progress')
       await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
     }
     else if (context.payload.action !== 'edited' && issue.state === 'closed') { // user commented on closed issue
       await label.set(config.label.reopened)
       await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
+      setStatus('in-progress')
     }
 
     if (sender.log.present) await label.remove(config.log.label)
@@ -204,13 +213,13 @@ async function update(issue: Issue, body: string): Promise<void> {
     }
     else if (context.payload.action !== 'edited') {
       await label.remove(config.label.awaiting)
-      setStatus('inProgress')
+      setStatus('in-progress')
     }
     else if (label.has(config.label.awaiting)) {
       setStatus('awaiting')
     }
     else {
-      setStatus('inProgress')
+      setStatus('in-progress')
     }
   }
 }

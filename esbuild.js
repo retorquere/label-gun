@@ -48,6 +48,7 @@ const Config = new class {
     'log.regex': `core.getInput('log.regex') ? new RegExp(core.getInput('log.regex')) : (undefined as unknown as RegExp)`,
     'verbose': `getBool('verbose', 'false')`,
     'assign': `getBool('assign', 'false')`,
+    'label.blocked': `core.getInput('label.blocked').split(',').map(l => l.trim()).filter(_ => _)`,
   }
   getter(path, k) {
     k = `${path}.${k}`.substring(1)
@@ -71,14 +72,16 @@ const Config = new class {
 
   walk(inputs, indent = '', path = '') {
     let code = indent ? '' : 'export const config = {\n'
-    for (const [k, v] of Object.entries(inputs)) {
+    for (let [k, v] of Object.entries(inputs)) {
+      const escaped = k.match(/^[a-z]+$/i) ? k : JSON.stringify(k)
+      const head = escaped[0] === '"' ? `[${escaped}]` : `.${escaped}`
       if (v.description) {
         code += `  ${indent}// ${this.description(v)}\n`
-        code += `  ${indent}${k.replace(/-[a-z]/g, m => m.substring(1).toUpperCase())}: ${this.getter(path, k)},\n\n`
+        code += `  ${indent}${escaped}: ${this.getter(path, k)},\n\n`
       }
       else {
-        code += `\n  ${indent}${k}: {\n`
-        code += this.walk(v, indent + '  ', `${path}.${k}`)
+        code += `\n  ${indent}${escaped}: {\n`
+        code += this.walk(v, indent + '  ', `${path}${head}`)
         code += `  ${indent}},\n`
       }
     }

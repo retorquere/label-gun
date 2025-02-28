@@ -122,8 +122,9 @@ def seed(repo):
     #elif user.last == 'owner' and user.user and 'awaiting-user-feedback' not in labels:
     #  edits == ['--add-label', 'awaiting-user-feedback']
 
-    if user.owner and len(issue.assignees) == 0:
-      edits += ['--add-assignee', 'retorquere']
+    # only do this manually
+    #if user.owner and len(issue.assignees) == 0:
+    #  edits += ['--add-assignee', 'retorquere']
 
     if len(edits) > 0:
       run(['gh', 'issue', 'edit', f'{issue.number}', '--repo', repo] + edits)
@@ -138,9 +139,11 @@ def seed(repo):
     if end_date != getattr(card, 'end_date', None):
       run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.end_date, '--date', end_date])
 
-    if user.user and 'awaiting-user-feedback' in labels:
+    if 'requires Zotero changes' in labels:
+      status = 'Blocked'
+    elif user.user and 'awaiting-user-feedback' in labels:
       status = 'Awaiting user input'
-    elif not user.user or len(issue.assignees) > 0:
+    elif len(issue.assignees) > 0:
       status = 'In progress'
     elif not user.owner:
       status = 'To triage'
@@ -151,7 +154,7 @@ def seed(repo):
       run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.status, '--single-select-option-id', Project.status(status)])
 
     OP = issue.author.login
-    if getattr(card, 'op', None) != OP:
+    if getattr(card, 'oP', None) != OP:
       run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.OP, '--text', OP])
 
 repos = [

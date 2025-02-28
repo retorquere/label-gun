@@ -30,6 +30,9 @@ export const config = {
 
     // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
     reopened: core.getInput('label.reopened'),
+
+    // labels for blocked issues
+    blocked: core.getInput('label.blocked').split(',').map(l => l.trim()).filter(_ => _),
   },
 
   close: {
@@ -55,11 +58,14 @@ export const config = {
 
   project: {
     state: {
+      // default: "Blocked", Status to output for issues that have an unmet dependency
+      blocked: core.getInput('project.state.blocked'),
+
       // default: "Awaiting user input", Status to output for issues that are waiting for feedback
       awaiting: core.getInput('project.state.awaiting'),
 
       // default: "In progress", Status to output for issues that are in progress
-      inProgress: core.getInput('project.state.in-progress'),
+      'in-progress': core.getInput('project.state.in-progress'),
 
       // default: "To triage", Status to output for issues that are new
       new: core.getInput('project.state.new'),
