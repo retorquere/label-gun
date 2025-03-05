@@ -23848,7 +23848,9 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
       reopened: core.getInput("label.reopened"),
       // labels for blocked issues
-      blocked: core.getInput("label.blocked").split(",").map((l) => l.trim()).filter((_) => _)
+      blocked: core.getInput("label.blocked").split(",").map((l) => l.trim()).filter((_) => _),
+      // managed issues labeled with canclose can be closed by the user
+      canclose: core.getInput("label.canclose")
     },
     close: {
       // when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
@@ -24020,7 +24022,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       setStatus("awaiting");
     } else if (sender.user) {
       if (import_github.context.payload.action === "closed") {
-        if (!label.has(config.label.reopened)) {
+        if (!label.has(config.label.reopened, config.label.canclose)) {
           report("user closed active issue, reopen");
           if (config.close.message)
             await octokit.rest.issues.createComment({

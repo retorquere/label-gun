@@ -33,6 +33,9 @@ export const config = {
 
     // labels for blocked issues
     blocked: core.getInput('label.blocked').split(',').map(l => l.trim()).filter(_ => _),
+
+    // managed issues labeled with canclose can be closed by the user
+    canclose: core.getInput('label.canclose'),
   },
 
   close: {

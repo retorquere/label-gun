@@ -19,6 +19,8 @@ inputs:
     description: re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
   label.blocked:
     description: labels for blocked issues
+  label.canclose:
+    description: managed issues labeled with canclose can be closed by the user
 
   close.message:
     description: when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message

@@ -177,7 +177,7 @@ async function update(issue: Issue, body: string): Promise<void> {
   }
   else if (sender.user) {
     if (context.payload.action === 'closed') { // user closed the issue
-      if (!label.has(config.label.reopened)) {
+      if (!label.has(config.label.reopened, config.label.canclose)) {
         report('user closed active issue, reopen')
         if (config.close.message)
           await octokit.rest.issues.createComment({
