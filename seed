@@ -49,7 +49,7 @@ class Project:
       end_date = next((f.id for f in self.fields if f.name == 'End date')),
       start_date = next((f.id for f in self.fields if f.name == 'Start date')),
       status = next((f.id for f in self.fields if f.name == 'Status')),
-      OP = next((f.id for f in self.fields if f.name == 'OP'))
+      users = next((f.id for f in self.fields if f.name == 'Users'))
     )
 
     result = run(['gh', 'project', 'item-list', str(number), '--format', 'json', '--owner', '@me', '--limit', limit])
@@ -68,12 +68,15 @@ Project = Project(5)
 class UserTracker:
   def __init__(self):
     self.cache = pickledb.PickleDB('users.json')
-    self.user = False
-    self.owner = False
+    self.users = set([])
+    self.owners = set([])
     self.last = None
 
-  def ping(self, kind):
-    setattr(self, kind, True)
+  def ping(self, kind, user):
+    if kind == 'user':
+      self.users.add(user)
+    else:
+      self.owners.add(user)
     self.last = kind
 
   def issue(self, issue):
@@ -85,7 +88,7 @@ class UserTracker:
         status = result.strip()
         self.cache.set(issue.author.login, 'owner' if status == 'OWNER' else 'user')
       self.cache.save()
-    self.ping(self.cache.get(issue.author.login))
+    self.ping(self.cache.get(issue.author.login), issue.author.login)
 
   def comment(self, comment):
     if not self.cache.get(comment.author.login):
@@ -94,7 +97,7 @@ class UserTracker:
       else:
         self.cache.set(comment.author.login, 'owner' if comment.authorAssociation == 'OWNER' else 'user')
       self.cache.save()
-    self.ping(self.cache.get(comment.author.login))
+    self.ping(self.cache.get(comment.author.login), comment.author.login)
 
 def seed(repo):
   repo = repo.lower()
@@ -106,25 +109,25 @@ def seed(repo):
 
     start_date = issue.createdAt.split('T')[0]
     end_date = issue.createdAt.split('T')[0]
-    user = UserTracker()
-    user.issue(issue)
+    Users = UserTracker()
+    Users.issue(issue)
     for comment in issue.comments:
       end_date = comment.createdAt.split('T')[0]
-      user.comment(comment)
+      Users.comment(comment)
 
     card = next((c for c in Project.cards if c.repository == repo and c.content.number == issue.number), None)
 
     edits = []
 
     # only do this manually
-    #if user.last == 'user' and 'awaiting-user-feedback' in labels:
+    #if Users.last == 'user' and 'awaiting-user-feedback' in labels:
     #  edits += ['--remove-label', 'awaiting-user-feedback']
     # only do this manually
-    #elif user.last == 'owner' and user.user and 'awaiting-user-feedback' not in labels:
+    #elif Users.last == 'owner' and Users.user and 'awaiting-user-feedback' not in labels:
     #  edits == ['--add-label', 'awaiting-user-feedback']
 
     # only do this manually
-    #if user.owner and len(issue.assignees) == 0:
+    #if Users.owner and len(issue.assignees) == 0:
     #  edits += ['--add-assignee', 'retorquere']
 
     if len(edits) > 0:
@@ -142,11 +145,11 @@ def seed(repo):
 
     if 'requires Zotero changes' in labels:
       status = 'Blocked'
-    elif user.user and 'awaiting-user-feedback' in labels:
+    elif len(Users.users) > 0 and 'awaiting-user-feedback' in labels:
       status = 'Awaiting user input'
     elif len(issue.assignees) > 0:
       status = 'In progress'
-    elif not user.owner:
+    elif len(Users.owners) == 0:
       status = 'To triage'
     else:
       status = 'Backlog'
@@ -154,9 +157,9 @@ def seed(repo):
     if card.status != status:
       run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.status, '--single-select-option-id', Project.status(status)])
 
-    OP = issue.author.login
-    if getattr(card, 'oP', None) != OP:
-      run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.OP, '--text', OP])
+    users = ', '.join(sorted(Users.users))
+    if users != '' and getattr(card, 'users', None) != users:
+      run(['gh', 'project', 'item-edit', '--id', card.id, '--project-id', Project.id, '--field-id', Project.field.users, '--text', users])
 
 repos = [
   'bibtex-parser',

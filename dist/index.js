@@ -23924,7 +23924,12 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
           report(username, "is a bot, which we", this.#owner[username] ? "consider" : "do not consider", "to be a contributor");
         } else {
           const { data: user } = await octokit.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
-          this.#owner[username] = user.permission === "admin";
+          this.#owner[username] = {
+            admin: true,
+            maintain: true,
+            push: true,
+            triage: true
+          }[user.permission] || false;
           report(username, "has", user.permission, "permission and is", this.#owner[username] ? "a" : "not a", "owner");
         }
       }
