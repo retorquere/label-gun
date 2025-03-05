@@ -116,8 +116,9 @@ def seed(repo):
 
     edits = []
 
-    if user.last == 'user' and 'awaiting-user-feedback' in labels:
-      edits += ['--remove-label', 'awaiting-user-feedback']
+    # only do this manually
+    #if user.last == 'user' and 'awaiting-user-feedback' in labels:
+    #  edits += ['--remove-label', 'awaiting-user-feedback']
     # only do this manually
     #elif user.last == 'owner' and user.user and 'awaiting-user-feedback' not in labels:
     #  edits == ['--add-label', 'awaiting-user-feedback']

@@ -23869,17 +23869,17 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     // assign issue to owner on owner interaction
     assign: getBool("assign", "false"),
     project: {
-      state: {
+      status: {
         // default: "Blocked", Status to output for issues that have an unmet dependency
-        blocked: core.getInput("project.state.blocked"),
+        blocked: core.getInput("project.status.blocked"),
         // default: "Awaiting user input", Status to output for issues that are waiting for feedback
-        awaiting: core.getInput("project.state.awaiting"),
+        awaiting: core.getInput("project.status.awaiting"),
         // default: "In progress", Status to output for issues that are in progress
-        "in-progress": core.getInput("project.state.in-progress"),
+        "in-progress": core.getInput("project.status.in-progress"),
         // default: "To triage", Status to output for issues that are new
-        new: core.getInput("project.state.new"),
+        new: core.getInput("project.status.new"),
         // default: "Backlog", Status to output for issues that have been seen by a repo owner but not acted on
-        backlog: core.getInput("project.state.backlog")
+        backlog: core.getInput("project.status.backlog")
       }
     }
   };
@@ -23897,8 +23897,8 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   };
   var owner = import_github.context.payload.repository?.owner?.login || "";
   var repo = import_github.context.payload.repository?.name || "";
-  function setStatus(state) {
-    core2.setOutput("state", state ? config.project.state[state] : "");
+  function setStatus(status) {
+    core2.setOutput("status", status ? config.project.status[status] : "");
   }
   function setIssue(issue) {
     core2.setOutput("issue", `${issue.number}`);
@@ -23930,11 +23930,14 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       }
       return this.#owner[username];
     }
+    owner(owner2) {
+      return Object.keys(this.#owner).filter((user) => this.#owner[user] === owner2);
+    }
     get owners() {
-      return Object.values(this.#owner).filter((o) => o).length;
+      return this.owner(true);
     }
     get users() {
-      return Object.values(this.#owner).filter((o) => !o).length;
+      return this.owner(false);
     }
   }();
   var Labels = class {
@@ -23973,19 +23976,22 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     };
     report("sender:", sender);
     const label = new Labels(issue);
-    const { data: comments } = await octokit.rest.issues.listComments({ owner, repo, issue_number: issue.number });
-    for (const user of [issue.user.login].concat(comments.map((comment) => comment.user?.login || ""))) {
-      await Users.isOwner(user);
-      if (Users.users && Users.owners) break;
+    await Users.isOwner(issue.user.login);
+    let end_date = import_github.context.payload.issue?.updated_at.split("T")[0] || "";
+    for (const comment of (await octokit.rest.issues.listComments({ owner, repo, issue_number: issue.number })).data) {
+      await Users.isOwner(comment.user?.login || "");
+      end_date = comment.updated_at.split("T")[0];
     }
-    const managed = Users.users && !label.has(config.label.exempt) && (!config.label.active || label.has(config.label.active));
-    if (Users.users && config.label.blocked && label.has(...config.label.blocked)) {
+    core2.setOutput("users", Users.users.sort().join(", "));
+    core2.setOutput("lastactive", end_date);
+    const managed = Users.users.length && !label.has(config.label.exempt) && (!config.label.active || label.has(config.label.active));
+    if (Users.users.length && config.label.blocked && label.has(...config.label.blocked)) {
       setStatus("blocked");
-    } else if (Users.users && label.has(config.label.awaiting)) {
+    } else if (Users.users.length && label.has(config.label.awaiting)) {
       setStatus("awaiting");
-    } else if (!Users.users || issue.assignees.length) {
+    } else if (!Users.users.length || issue.assignees.length) {
       setStatus("in-progress");
-    } else if (!Users.owners) {
+    } else if (!Users.owners.length) {
       setStatus("new");
     } else {
       setStatus("backlog");
@@ -24018,7 +24024,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return;
     }
     if (sender.owner) {
-      if (Users.users) await label.set(config.label.awaiting);
+      if (Users.users.length) await label.set(config.label.awaiting);
       setStatus("awaiting");
     } else if (sender.user) {
       if (import_github.context.payload.action === "closed") {

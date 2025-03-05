@@ -19,8 +19,8 @@ const sender = {
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
 
-function setStatus(state: false | 'blocked' | 'awaiting' | 'in-progress' | 'new' | 'backlog') {
-  core.setOutput('state', state ? config.project.state[state] : '')
+function setStatus(status: false | 'blocked' | 'awaiting' | 'in-progress' | 'new' | 'backlog') {
+  core.setOutput('status', status ? config.project.status[status] : '')
 }
 function setIssue(issue: Issue) {
   core.setOutput('issue', `${issue.number}`)
@@ -63,11 +63,15 @@ const Users = new class {
     return this.#owner[username]
   }
 
-  get owners(): number {
-    return Object.values(this.#owner).filter(o => o).length
+  private owner(owner: boolean) {
+    return Object.keys(this.#owner).filter(user => this.#owner[user] === owner)
   }
-  get users(): number {
-    return Object.values(this.#owner).filter(o => !o).length
+
+  get owners(): string[] {
+    return this.owner(true)
+  }
+  get users(): string[] {
+    return this.owner(false)
   }
 }()
 
@@ -115,24 +119,27 @@ async function update(issue: Issue, body: string): Promise<void> {
 
   const label = new Labels(issue)
 
-  const { data: comments } = await octokit.rest.issues.listComments({ owner, repo, issue_number: issue.number })
-  for (const user of [issue.user.login].concat(comments.map(comment => comment.user?.login || ''))) {
-    await Users.isOwner(user)
-    if (Users.users && Users.owners) break
+  await Users.isOwner(issue.user.login)
+  let end_date = context.payload.issue?.updated_at.split('T')[0] || ''
+  for (const comment of (await octokit.rest.issues.listComments({ owner, repo, issue_number: issue.number })).data) {
+    await Users.isOwner(comment.user?.login || '')
+    end_date = comment.updated_at.split('T')[0]
   }
+  core.setOutput('users', Users.users.sort().join(', '))
+  core.setOutput('lastactive', end_date)
 
-  const managed = Users.users && !label.has(config.label.exempt) && (!config.label.active || label.has(config.label.active))
+  const managed = Users.users.length && !label.has(config.label.exempt) && (!config.label.active || label.has(config.label.active))
 
-  if (Users.users && config.label.blocked && label.has(...config.label.blocked)) {
+  if (Users.users.length && config.label.blocked && label.has(...config.label.blocked)) {
     setStatus('blocked')
   }
-  else if (Users.users && label.has(config.label.awaiting)) {
+  else if (Users.users.length && label.has(config.label.awaiting)) {
     setStatus('awaiting')
   }
-  else if (!Users.users || issue.assignees.length) {
+  else if (!Users.users.length || issue.assignees.length) {
     setStatus('in-progress')
   }
-  else if (!Users.owners) {
+  else if (!Users.owners.length) {
     setStatus('new')
   }
   else {
@@ -172,7 +179,7 @@ async function update(issue: Issue, body: string): Promise<void> {
   }
 
   if (sender.owner) {
-    if (Users.users) await label.set(config.label.awaiting)
+    if (Users.users.length) await label.set(config.label.awaiting)
     setStatus('awaiting')
   }
   else if (sender.user) {

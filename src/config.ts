@@ -60,21 +60,21 @@ export const config = {
   assign: getBool('assign', 'false'),
 
   project: {
-    state: {
+    status: {
       // default: "Blocked", Status to output for issues that have an unmet dependency
-      blocked: core.getInput('project.state.blocked'),
+      blocked: core.getInput('project.status.blocked'),
 
       // default: "Awaiting user input", Status to output for issues that are waiting for feedback
-      awaiting: core.getInput('project.state.awaiting'),
+      awaiting: core.getInput('project.status.awaiting'),
 
       // default: "In progress", Status to output for issues that are in progress
-      'in-progress': core.getInput('project.state.in-progress'),
+      'in-progress': core.getInput('project.status.in-progress'),
 
       // default: "To triage", Status to output for issues that are new
-      new: core.getInput('project.state.new'),
+      new: core.getInput('project.status.new'),
 
       // default: "Backlog", Status to output for issues that have been seen by a repo owner but not acted on
-      backlog: core.getInput('project.state.backlog'),
+      backlog: core.getInput('project.status.backlog'),
     },
   },
 }

@@ -38,27 +38,31 @@ inputs:
   assign:
     description: assign issue to owner on owner interaction
 
-  project.state.blocked:
+  project.status.blocked:
     description: Status to output for issues that have an unmet dependency
     default: 'Blocked'
-  project.state.awaiting:
+  project.status.awaiting:
     description: Status to output for issues that are waiting for feedback
     default: 'Awaiting user input'
-  project.state.in-progress:
+  project.status.in-progress:
     description: Status to output for issues that are in progress
     default: 'In progress'
-  project.state.new:
+  project.status.new:
     description: Status to output for issues that are new
     default: 'To triage'
-  project.state.backlog:
+  project.status.backlog:
     description: Status to output for issues that have been seen by a repo owner but not acted on
     default: 'Backlog'
 
 outputs:
   issue:
     description: Issue number
-  state:
-    description: issue state. One of 'in-progress', 'awaiting', 'closed' or 'unmanaged'
+  status:
+    description: issue status. One of 'blocked', 'in-progress', 'awaiting', 'new' or 'backlog'
+  users:
+    description: non-owner users active on the issues
+  lastactive:
+    description: last active date (issue or comment)
 runs:
   using: 'node20'
   main: 'dist/index.js'
