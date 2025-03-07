@@ -184,7 +184,7 @@ async function update(issue: Issue, body: string): Promise<void> {
   }
 
   if (sender.owner) {
-    if (Users.users.length) await label.set(config.label.awaiting)
+    if (Users.users.length && context.payload.action !== 'edited') await label.set(config.label.awaiting)
     setStatus('awaiting')
   }
   else if (sender.user) {

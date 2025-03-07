@@ -24029,7 +24029,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return;
     }
     if (sender.owner) {
-      if (Users.users.length) await label.set(config.label.awaiting);
+      if (Users.users.length && import_github.context.payload.action !== "edited") await label.set(config.label.awaiting);
       setStatus("awaiting");
     } else if (sender.user) {
       if (import_github.context.payload.action === "closed") {
