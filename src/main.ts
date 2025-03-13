@@ -60,6 +60,7 @@ const Users = new class {
           maintain: true,
           push: true,
           triage: true,
+          write: true,
         }[user.permission] || false
         report(username, 'has', user.permission, 'permission and is', this.#owner[username] ? 'a' : 'not a', 'owner')
       }
