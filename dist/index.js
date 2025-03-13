@@ -23928,7 +23928,8 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
             admin: true,
             maintain: true,
             push: true,
-            triage: true
+            triage: true,
+            write: true
           }[user.permission] || false;
           report(username, "has", user.permission, "permission and is", this.#owner[username] ? "a" : "not a", "owner");
         }
