@@ -18,6 +18,7 @@ const sender = {
 }
 const owner: string = context.payload.repository?.owner?.login || ''
 const repo: string = context.payload.repository?.name || ''
+const event = `${context.eventName}.${context.payload.action}`
 
 function setStatus(status: false | 'blocked' | 'awaiting' | 'in-progress' | 'new' | 'backlog') {
   core.setOutput('status', status ? config.project.status[status] : '')
@@ -118,7 +119,7 @@ async function update(issue: Issue, body: string): Promise<void> {
   sender.owner = await Users.isOwner(sender.login)
   sender.user = !sender.owner
   sender.log = {
-    needed: !!config.log.regex && sender.user && context.payload.action === 'opened',
+    needed: !!config.log.regex && sender.user && event === 'issues.opened',
     present: config.log.regex ? !!body.match(config.log.regex) : false,
   }
   report('sender:', sender)
@@ -185,11 +186,11 @@ async function update(issue: Issue, body: string): Promise<void> {
   }
 
   if (sender.owner) {
-    if (Users.users.length && context.payload.action !== 'edited') await label.set(config.label.awaiting)
+    if (Users.users.length && event === 'issue_comment.created') await label.set(config.label.awaiting)
     setStatus('awaiting')
   }
   else if (sender.user) {
-    if (context.payload.action === 'closed') { // user closed the issue
+    if (event === 'issues.closed') { // user closed the issue
       if (!label.has(config.label.reopened, config.label.canclose)) {
         report('user closed active issue, reopen')
         if (config.close.message)
@@ -203,7 +204,7 @@ async function update(issue: Issue, body: string): Promise<void> {
       setStatus('in-progress')
       await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
     }
-    else if (context.payload.action !== 'edited' && issue.state === 'closed') { // user commented on closed issue
+    else if (event === 'issue_comment.created' && issue.state === 'closed') { // user commented on closed issue
       await label.set(config.label.reopened)
       await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
       setStatus('in-progress')
@@ -224,7 +225,7 @@ async function update(issue: Issue, body: string): Promise<void> {
       }
       setStatus('awaiting')
     }
-    else if (context.payload.action !== 'edited') {
+    else if (event === 'issue_comment.created') {
       await label.remove(config.label.awaiting)
       setStatus('in-progress')
     }
@@ -272,7 +273,7 @@ async function run(): Promise<void> {
       }
 
       default: {
-        core.setFailed(`Unexpected event ${context.eventName}`)
+        core.setFailed(`Unexpected event ${event}`)
         break
       }
     }

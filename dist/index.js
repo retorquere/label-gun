@@ -14448,11 +14448,11 @@ ${pendingInterceptorsFormatter.format(pending)}
         })();
       }
       function fireAProgressEvent(e, reader) {
-        const event = new ProgressEvent(e, {
+        const event2 = new ProgressEvent(e, {
           bubbles: false,
           cancelable: false
         });
-        reader.dispatchEvent(event);
+        reader.dispatchEvent(event2);
       }
       function packageData(bytes, type, mimeType, encodingName) {
         switch (type) {
@@ -16243,8 +16243,8 @@ ${pendingInterceptorsFormatter.format(pending)}
         return ws[kReadyState] === states.CLOSED;
       }
       function fireEvent(e, target, eventConstructor = Event, eventInitDict) {
-        const event = new eventConstructor(e, eventInitDict);
-        target.dispatchEvent(event);
+        const event2 = new eventConstructor(e, eventInitDict);
+        target.dispatchEvent(event2);
       }
       function websocketMessageReceived(ws, type, data) {
         if (ws[kReadyState] !== states.OPEN) {
@@ -23897,6 +23897,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   };
   var owner = import_github.context.payload.repository?.owner?.login || "";
   var repo = import_github.context.payload.repository?.name || "";
+  var event = `${import_github.context.eventName}.${import_github.context.payload.action}`;
   function setStatus(status) {
     core2.setOutput("status", status ? config.project.status[status] : "");
   }
@@ -23977,7 +23978,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     sender.owner = await Users.isOwner(sender.login);
     sender.user = !sender.owner;
     sender.log = {
-      needed: !!config.log.regex && sender.user && import_github.context.payload.action === "opened",
+      needed: !!config.log.regex && sender.user && event === "issues.opened",
       present: config.log.regex ? !!body.match(config.log.regex) : false
     };
     report("sender:", sender);
@@ -24030,10 +24031,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       return;
     }
     if (sender.owner) {
-      if (Users.users.length && import_github.context.payload.action !== "edited") await label.set(config.label.awaiting);
+      if (Users.users.length && event === "issue_comment.created") await label.set(config.label.awaiting);
       setStatus("awaiting");
     } else if (sender.user) {
-      if (import_github.context.payload.action === "closed") {
+      if (event === "issues.closed") {
         if (!label.has(config.label.reopened, config.label.canclose)) {
           report("user closed active issue, reopen");
           if (config.close.message)
@@ -24046,7 +24047,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         }
         setStatus("in-progress");
         await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
-      } else if (import_github.context.payload.action !== "edited" && issue.state === "closed") {
+      } else if (event === "issue_comment.created" && issue.state === "closed") {
         await label.set(config.label.reopened);
         await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: "open" });
         setStatus("in-progress");
@@ -24064,7 +24065,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
           });
         }
         setStatus("awaiting");
-      } else if (import_github.context.payload.action !== "edited") {
+      } else if (event === "issue_comment.created") {
         await label.remove(config.label.awaiting);
         setStatus("in-progress");
       } else if (label.has(config.label.awaiting)) {
@@ -24088,7 +24089,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
           return await update(issue, comment?.body || "");
         }
         default: {
-          core2.setFailed(`Unexpected event ${import_github.context.eventName}`);
+          core2.setFailed(`Unexpected event ${event}`);
           break;
         }
       }
