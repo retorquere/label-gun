@@ -8889,6 +8889,14 @@ ${len.toString(16)}\r
           this[kOptions] = { ...util2.deepClone(options), connect, allowH2 };
           this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
           this[kFactory] = factory;
+          this.on("connectionError", (origin2, targets, error) => {
+            for (const target of targets) {
+              const idx = this[kClients].indexOf(target);
+              if (idx !== -1) {
+                this[kClients].splice(idx, 1);
+              }
+            }
+          });
         }
         [kGetDispatcher]() {
           let dispatcher = this[kClients].find((dispatcher2) => !dispatcher2[kNeedDrain]);
@@ -11559,6 +11567,7 @@ ${pendingInterceptorsFormatter.format(pending)}
         isValidHeaderName,
         isValidHeaderValue
       } = require_util2();
+      var util2 = __require("util");
       var { webidl } = require_webidl();
       var assert = __require("assert");
       var kHeadersMap = Symbol("headers map");
@@ -11910,6 +11919,9 @@ ${pendingInterceptorsFormatter.format(pending)}
         [Symbol.toStringTag]: {
           value: "Headers",
           configurable: true
+        },
+        [util2.inspect.custom]: {
+          enumerable: false
         }
       });
       webidl.converters.HeadersInit = function(V) {
@@ -15499,8 +15511,6 @@ ${pendingInterceptorsFormatter.format(pending)}
   var require_util6 = __commonJS({
     "node_modules/undici/lib/cookies/util.js"(exports, module) {
       "use strict";
-      var assert = __require("assert");
-      var { kHeadersList } = require_symbols();
       function isCTLExcludingHtab(value) {
         if (value.length === 0) {
           return false;
@@ -15631,25 +15641,13 @@ ${pendingInterceptorsFormatter.format(pending)}
         }
         return out.join("; ");
       }
-      var kHeadersListNode;
-      function getHeadersList(headers) {
-        if (headers[kHeadersList]) {
-          return headers[kHeadersList];
-        }
-        if (!kHeadersListNode) {
-          kHeadersListNode = Object.getOwnPropertySymbols(headers).find(
-            (symbol) => symbol.description === "headers list"
-          );
-          assert(kHeadersListNode, "Headers cannot be parsed");
-        }
-        const headersList = headers[kHeadersListNode];
-        assert(headersList);
-        return headersList;
-      }
       module.exports = {
         isCTLExcludingHtab,
-        stringify,
-        getHeadersList
+        validateCookieName,
+        validateCookiePath,
+        validateCookieValue,
+        toIMFDate,
+        stringify
       };
     }
   });
@@ -15799,7 +15797,7 @@ ${pendingInterceptorsFormatter.format(pending)}
     "node_modules/undici/lib/cookies/index.js"(exports, module) {
       "use strict";
       var { parseSetCookie } = require_parse();
-      var { stringify, getHeadersList } = require_util6();
+      var { stringify } = require_util6();
       var { webidl } = require_webidl();
       var { Headers } = require_headers();
       function getCookies(headers) {
@@ -15831,11 +15829,11 @@ ${pendingInterceptorsFormatter.format(pending)}
       function getSetCookies(headers) {
         webidl.argumentLengthCheck(arguments, 1, { header: "getSetCookies" });
         webidl.brandCheck(headers, Headers, { strict: false });
-        const cookies = getHeadersList(headers).cookies;
+        const cookies = headers.getSetCookie();
         if (!cookies) {
           return [];
         }
-        return cookies.map((pair) => parseSetCookie(Array.isArray(pair) ? pair[1] : pair));
+        return cookies.map((pair) => parseSetCookie(pair));
       }
       function setCookie(headers, cookie) {
         webidl.argumentLengthCheck(arguments, 2, { header: "setCookie" });
@@ -17843,7 +17841,7 @@ ${pendingInterceptorsFormatter.format(pending)}
           }
           const usingSsl = parsedUrl.protocol === "https:";
           proxyAgent = new undici_1.ProxyAgent(Object.assign({ uri: proxyUrl.href, pipelining: !this._keepAlive ? 0 : 1 }, (proxyUrl.username || proxyUrl.password) && {
-            token: `${proxyUrl.username}:${proxyUrl.password}`
+            token: `Basic ${Buffer.from(`${proxyUrl.username}:${proxyUrl.password}`).toString("base64")}`
           }));
           this._proxyAgentDispatcher = proxyAgent;
           if (usingSsl && this._ignoreSslError) {
@@ -19855,6 +19853,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
           this.action = process.env.GITHUB_ACTION;
           this.actor = process.env.GITHUB_ACTOR;
           this.job = process.env.GITHUB_JOB;
+          this.runAttempt = parseInt(process.env.GITHUB_RUN_ATTEMPT, 10);
           this.runNumber = parseInt(process.env.GITHUB_RUN_NUMBER, 10);
           this.runId = parseInt(process.env.GITHUB_RUN_ID, 10);
           this.apiUrl = (_a = process.env.GITHUB_API_URL) !== null && _a !== void 0 ? _a : `https://api.github.com`;
@@ -21016,17 +21015,17 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         return to;
       };
       var __toCommonJS2 = (mod) => __copyProps2(__defProp2({}, "__esModule", { value: true }), mod);
-      var dist_src_exports = {};
-      __export2(dist_src_exports, {
+      var index_exports = {};
+      __export2(index_exports, {
         Octokit: () => Octokit
       });
-      module.exports = __toCommonJS2(dist_src_exports);
+      module.exports = __toCommonJS2(index_exports);
       var import_universal_user_agent3 = require_dist_node();
       var import_before_after_hook = require_before_after_hook();
       var import_request = (init_dist_web4(), __toCommonJS(dist_web_exports));
       var import_graphql = require_dist_node2();
       var import_auth_token = (init_dist_web5(), __toCommonJS(dist_web_exports2));
-      var VERSION4 = "5.2.0";
+      var VERSION4 = "5.2.1";
       var noop = () => {
       };
       var consoleWarn = console.warn.bind(console);
