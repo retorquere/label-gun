@@ -200,9 +200,9 @@ async function update(issue: Issue, body: string): Promise<void> {
             issue_number: issue.number,
             body: config.close.message.replace('{{username}}', sender.login),
           })
+        setStatus('in-progress')
+        await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
       }
-      setStatus('in-progress')
-      await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
     }
     else if (event === 'issue_comment.created' && issue.state === 'closed') { // user commented on closed issue
       await label.set(config.label.reopened)

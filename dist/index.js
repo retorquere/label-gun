@@ -23983,9 +23983,9 @@ ${value}`;
               issue_number: issue2.number,
               body: config.close.message.replace("{{username}}", sender.login)
             });
+          setStatus("in-progress");
+          await octokit.rest.issues.update({ owner, repo, issue_number: issue2.number, state: "open" });
         }
-        setStatus("in-progress");
-        await octokit.rest.issues.update({ owner, repo, issue_number: issue2.number, state: "open" });
       } else if (event === "issue_comment.created" && issue2.state === "closed") {
         await label.set(config.label.reopened);
         await octokit.rest.issues.update({ owner, repo, issue_number: issue2.number, state: "open" });
