@@ -2,44 +2,44 @@
   "name": "label-gun",
   "version": "4.0.13",
   "private": true,
-  "description": "automatic issue labeler",
+  "description": "GitHub Action for issue triage automation",
   "main": "dist/index.js",
   "scripts": {
     "build": "npm run package",
+    "build:test": "rm -rf lib && tsc",
     "format-check": "prettier --check **/*.ts",
     "lint": "dprint fmt src/*.ts && dprint check src/*.ts",
-    "package": "./esbuild.js && npm run lint && tsc --noEmit",
-    "preversion": "npm start && git add -u",
+    "package": "node esbuild.js && npm run lint && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "preversion": "npm test && git add -u",
     "postversion": "git push --follow-tags",
+    "pretest": "npm run build:test",
     "test": "node --test __tests__/main.test.js",
-    "start": "npm run build && npm run lint && npm run package && npm test"
+    "start": "npm run package"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/actions/typescript-action.git"
   },
   "keywords": [
+    "github",
+    "issues",
     "actions",
-    "node",
-    "setup"
+    "triage"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^3.0.0",
     "@actions/github": "^9.1.0",
-    "@octokit/graphql": "^9.0.3",
+    "@octokit/openapi-types": "^25.1.0",
     "@octokit/request-error": "^7.1.0",
-    "@octokit/rest": "^22.0.1",
-    "@octokit/webhooks": "^14.2.0",
-    "@octokit/webhooks-types": "^7.6.1",
     "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "dprint": "^0.54.0",
     "esbuild": "^0.28.0",
-    "object-dot-parser": "^2.0.0",
     "typescript": "^6.0.3"
   }
 }

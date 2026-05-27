@@ -1,70 +1,104 @@
 name: 'Label-gun'
-description: 'Manage issue feedback'
+description: 'Manage issue triage state and evidence requirements'
 author: 'Emiliano Heyns'
 inputs:
   token:
     required: true
-    description: token to post to the issue list
-
-  label.awaiting:
-    required: true
-    description: label issues that require user feedback to proceed
-    default: awaiting-user-feedback
-
-  label.active:
-    description: only act on issues with this tag
-  label.exempt:
-    description: ignore issues with this tag
-  label.reopened:
-    description: re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
-  label.blocked:
-    description: labels for blocked issues
-  label.canclose:
-    description: managed issues labeled with canclose can be closed by the user
-
-  close.message:
-    description: when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
-
-  log.regex:
-    description: search for this regular expression to detect log ID
-  log.message:
-    description: post this comment when log ID is missing
-  log.label:
-    description: tag issues with missing log ID with this label
-
+    description: GitHub token for issue operations
+  'project-token':
+    required: false
+    description: Optional token for GitHub Project updates when the default token lacks access
+  config:
+    required: false
+    description: Inline YAML configuration override
+  'config-path':
+    required: false
+    default: .github/label-gun.yml
+    description: Repository config path
   verbose:
-    description: log activity
-
+    required: false
+    description: Enable verbose logging
   assign:
-    description: assign issue to owner on owner interaction
-
-  project.status.blocked:
-    description: Status to output for issues that have an unmet dependency
-    default: 'Blocked'
-  project.status.awaiting:
-    description: Status to output for issues that are waiting for feedback
-    default: 'Awaiting user input'
-  project.status.in-progress:
-    description: Status to output for issues that are in progress
-    default: 'In progress'
-  project.status.new:
-    description: Status to output for issues that are new
-    default: 'To triage'
-  project.status.backlog:
-    description: Status to output for issues that have been seen by a repo owner but not acted on
-    default: 'Backlog'
-
+    required: false
+    description: Assign issues to maintainers on maintainer interaction
+  label-awaiting:
+    required: false
+    default: awaiting-user-feedback
+    description: Label issues that require user feedback to proceed
+  label-active:
+    required: false
+    description: Only act on issues with this tag
+  label-exempt:
+    required: false
+    description: Ignore issues with this tag
+  label-reopened:
+    required: false
+    description: Label to apply when a closed issue is reopened by new user activity
+  label-blocked:
+    required: false
+    description: Comma-separated labels for blocked issues
+  label-canclose:
+    required: false
+    description: Comma-separated labels that allow users to close issues without reopening
+  close-message:
+    required: false
+    description: Comment posted when a user closes an issue that should remain open
+  log-regex:
+    required: false
+    description: Legacy regex for required debug-log evidence
+  log-message:
+    required: false
+    description: Legacy comment posted when required evidence is missing
+  log-label:
+    required: false
+    description: Legacy label for missing required evidence
+  project-url:
+    required: false
+    description: GitHub Project URL to sync issue status into
+  project-field-status:
+    required: false
+    default: Status
+    description: Project field name for status
+  project-field-end-date:
+    required: false
+    default: End date
+    description: Project field name for last-active date
+  project-field-users:
+    required: false
+    default: Users
+    description: Project field name for active users
+  project-status-blocked:
+    required: false
+    default: Blocked
+    description: Output and project status name for blocked issues
+  project-status-awaiting:
+    required: false
+    default: Awaiting user input
+    description: Output and project status name for issues awaiting feedback
+  project-status-in-progress:
+    required: false
+    default: In progress
+    description: Output and project status name for in-progress issues
+  project-status-new:
+    required: false
+    default: To triage
+    description: Output and project status name for new issues
+  project-status-backlog:
+    required: false
+    default: Backlog
+    description: Output and project status name for backlog issues
 outputs:
   issue:
     description: Issue number
   status:
-    description: issue status. One of 'blocked', 'in-progress', 'awaiting', 'new' or 'backlog'
+    description: Issue status name
   users:
-    description: non-owner users active on the issues
+    description: Non-maintainer users active on the issue
   lastactive:
-    description: last active date (issue or comment)
+    description: Last active date on the issue
 runs:
   using: 'node20'
   main: 'dist/index.js'
 branding:
   icon: tag
+  color: gray-dark

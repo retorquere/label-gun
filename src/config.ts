@@ -1,80 +1,349 @@
-import * as core from '@actions/core'
+import { parse } from 'yaml'
 
-function getEnum(i: string, options: string[]): string {
-  options = options.filter(_ => _)
-  if (!options.length) throw new Error(`enum ${i} needs options`)
-  const o = core.getInput(i) || options[0]
-  if (options.includes(o)) return o
-  const mapped = options.find(_ => _.toLowerCase() === o.toLowerCase())
-  if (mapped) return mapped
-  throw new Error(`Default ${JSON.stringify(o)} must be one of ${JSON.stringify(options)}`)
+import { ActionContext } from './action-context'
+
+export type ManagedStatus = 'blocked' | 'awaiting' | 'in-progress' | 'new' | 'backlog'
+
+interface LabelConfigFile {
+  awaiting?: string
+  active?: string | string[]
+  exempt?: string | string[]
+  reopened?: string
+  blocked?: string | string[]
+  canClose?: string | string[]
+  canclose?: string | string[]
 }
 
-function getBool(i: string, dlft: 'true' | 'false' = 'false'): boolean {
-  return getEnum(i, ['false', 'true']) === 'true'
+interface ProjectFieldConfigFile {
+  status?: string | false
+  endDate?: string | false
+  users?: string | false
 }
 
-export const config = {
-  // required; token to post to the issue list
-  token: core.getInput('token'),
+interface ProjectStatusConfigFile {
+  blocked?: string
+  awaiting?: string
+  inProgress?: string
+  ['in-progress']?: string
+  new?: string
+  backlog?: string
+}
 
-  label: {
-    // required; default: "awaiting-user-feedback", label issues that require user feedback to proceed
-    awaiting: core.getInput('label.awaiting'),
+interface ProjectConfigFile {
+  url?: string
+  fields?: ProjectFieldConfigFile
+  status?: ProjectStatusConfigFile
+}
 
-    // only act on issues with this tag
-    active: core.getInput('label.active'),
+interface LogConfigFile {
+  regex?: string
+  label?: string
+  message?: string
+}
 
-    // ignore issues with this tag
-    exempt: core.getInput('label.exempt'),
+interface MessageConfigFile {
+  missingLog?: string
+  closedByUser?: string
+}
 
-    // re-open issue when non-collaborator posts, and label issue. Issues re-opened this way can be closed by non-collaborators.
-    reopened: core.getInput('label.reopened'),
+interface RequirementConfigFile {
+  name?: string
+  events?: string | string[]
+  actor?: 'user' | 'owner' | 'any'
+  pattern?: string
+  label?: string
+  addLabels?: string | string[]
+  removeLabels?: string | string[]
+  message?: string
+  status?: ManagedStatus
+}
 
-    // labels for blocked issues
-    blocked: core.getInput('label.blocked').split(',').map(l => l.trim()).filter(_ => _),
+interface ConfigFile {
+  verbose?: boolean
+  assign?: boolean
+  labels?: LabelConfigFile
+  label?: LabelConfigFile
+  messages?: MessageConfigFile
+  requirements?: RequirementConfigFile[]
+  close?: {
+    message?: string
+  }
+  logs?: LogConfigFile
+  log?: LogConfigFile
+  project?: ProjectConfigFile
+}
 
-    // managed issues labeled with canclose can be closed by the user
-    canclose: core.getInput('label.canclose'),
-  },
-
+export interface RuntimeConfig {
+  verbose: boolean
+  assign: boolean
+  statusNames: Record<ManagedStatus, string>
+  requirements: Array<{
+    name?: string
+    events: string[]
+    actor: 'user' | 'owner' | 'any'
+    pattern: string
+    regex: RegExp
+    label?: string
+    addLabels: string[]
+    removeLabels: string[]
+    message?: string
+    status?: ManagedStatus
+  }>
+  labels: {
+    awaiting: string
+    active: string[]
+    exempt: string[]
+    reopened?: string
+    blocked: string[]
+    canClose: string[]
+  }
   close: {
-    // when set, assigned issues can only be closed by collaborators. Since github doesn't allow to set this behavior, re-open the issue and show this message
-    message: core.getInput('close.message'),
-  },
+    message?: string
+  }
+  logs: {
+    regexSource?: string
+    regex?: RegExp
+    label?: string
+    message?: string
+  }
+  project?: {
+    url: string
+    fields: {
+      status: string | false
+      endDate: string | false
+      users: string | false
+    }
+    status: Record<ManagedStatus, string>
+  }
+}
 
-  log: {
-    // search for this regular expression to detect log ID
-    regex: core.getInput('log.regex') ? new RegExp(core.getInput('log.regex')) : (undefined as unknown as RegExp),
+const defaultProjectStatus: Record<ManagedStatus, string> = {
+  blocked: 'Blocked',
+  awaiting: 'Awaiting user input',
+  'in-progress': 'In progress',
+  new: 'To triage',
+  backlog: 'Backlog',
+}
 
-    // post this comment when log ID is missing
-    message: core.getInput('log.message'),
+function maybeString(value: string | false | undefined): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed || undefined
+}
 
-    // tag issues with missing log ID with this label
-    label: core.getInput('log.label'),
-  },
-  // log activity
-  verbose: getBool('verbose', 'false'),
+function maybeFieldName(value: string | false | undefined, fallback: string): string | false {
+  if (value === false) return false
+  return maybeString(value) || fallback
+}
 
-  // assign issue to owner on owner interaction
-  assign: getBool('assign', 'false'),
+function getInput(context: ActionContext, ...names: string[]): string {
+  for (const name of names) {
+    const value = context.getInput(name)
+    if (value) return value
+  }
 
-  project: {
-    status: {
-      // default: "Blocked", Status to output for issues that have an unmet dependency
-      blocked: core.getInput('project.status.blocked'),
+  return ''
+}
 
-      // default: "Awaiting user input", Status to output for issues that are waiting for feedback
-      awaiting: core.getInput('project.status.awaiting'),
+function toList(value: string | string[] | undefined): string[] {
+  if (!value) return []
 
-      // default: "In progress", Status to output for issues that are in progress
-      'in-progress': core.getInput('project.status.in-progress'),
+  if (Array.isArray(value)) {
+    return value
+      .map(item => item.trim())
+      .filter(Boolean)
+  }
 
-      // default: "To triage", Status to output for issues that are new
-      new: core.getInput('project.status.new'),
+  return value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+}
 
-      // default: "Backlog", Status to output for issues that have been seen by a repo owner but not acted on
-      backlog: core.getInput('project.status.backlog'),
+function toRequirement(requirement: RequirementConfigFile, awaitingLabel: string): RuntimeConfig['requirements'][number] | undefined {
+  const pattern = maybeString(requirement.pattern)
+  if (!pattern) return undefined
+
+  const label = maybeString(requirement.label)
+  const addLabels = toList(requirement.addLabels)
+  const removeLabels = toList(requirement.removeLabels)
+
+  return {
+    name: maybeString(requirement.name),
+    events: toList(requirement.events).length ? toList(requirement.events) : ['issues.opened'],
+    actor: requirement.actor || 'user',
+    pattern,
+    regex: new RegExp(pattern),
+    label,
+    addLabels: addLabels.length ? addLabels : (label ? [awaitingLabel, label] : [awaitingLabel]),
+    removeLabels: removeLabels.length ? removeLabels : (label ? [label] : []),
+    message: maybeString(requirement.message),
+    status: requirement.status || 'awaiting',
+  }
+}
+
+function optionalBoolInput(context: ActionContext, name: string): boolean | undefined {
+  const value = maybeString(context.getInput(name))
+  if (!value) return undefined
+  if (value === 'true') return true
+  if (value === 'false') return false
+  throw new Error(`Input ${name} must be true or false`)
+}
+
+function parseInlineConfig(context: ActionContext): ConfigFile {
+  const raw = maybeString(context.getInput('config'))
+  if (!raw) return {}
+
+  const parsed = parse(raw)
+  if (!parsed || typeof parsed !== 'object') return {}
+
+  return parsed as ConfigFile
+}
+
+function legacyInputConfig(context: ActionContext): ConfigFile {
+  const config: ConfigFile = {}
+
+  const verbose = optionalBoolInput(context, 'verbose')
+  if (typeof verbose === 'boolean') config.verbose = verbose
+
+  const assign = optionalBoolInput(context, 'assign')
+  if (typeof assign === 'boolean') config.assign = assign
+
+  const labels: LabelConfigFile = {
+    awaiting: maybeString(getInput(context, 'label-awaiting', 'label.awaiting')),
+    active: maybeString(getInput(context, 'label-active', 'label.active')),
+    exempt: maybeString(getInput(context, 'label-exempt', 'label.exempt')),
+    reopened: maybeString(getInput(context, 'label-reopened', 'label.reopened')),
+    blocked: maybeString(getInput(context, 'label-blocked', 'label.blocked')),
+    canclose: maybeString(getInput(context, 'label-canclose', 'label.canclose')),
+  }
+  if (Object.values(labels).some(Boolean)) config.labels = labels
+
+  const closeMessage = maybeString(getInput(context, 'close-message', 'close.message'))
+  if (closeMessage) config.close = { message: closeMessage }
+
+  const logs: LogConfigFile = {
+    regex: maybeString(getInput(context, 'log-regex', 'log.regex')),
+    label: maybeString(getInput(context, 'log-label', 'log.label')),
+    message: maybeString(getInput(context, 'log-message', 'log.message')),
+  }
+  if (Object.values(logs).some(Boolean)) config.logs = logs
+
+  const projectFields: ProjectFieldConfigFile = {
+    status: maybeString(getInput(context, 'project-field-status', 'project.field.status')),
+    endDate: maybeString(getInput(context, 'project-field-end-date', 'project.field.end-date')),
+    users: maybeString(getInput(context, 'project-field-users', 'project.field.users')),
+  }
+  const projectStatus: ProjectStatusConfigFile = {
+    blocked: maybeString(getInput(context, 'project-status-blocked', 'project.status.blocked')),
+    awaiting: maybeString(getInput(context, 'project-status-awaiting', 'project.status.awaiting')),
+    inProgress: maybeString(getInput(context, 'project-status-in-progress', 'project.status.in-progress')),
+    new: maybeString(getInput(context, 'project-status-new', 'project.status.new')),
+    backlog: maybeString(getInput(context, 'project-status-backlog', 'project.status.backlog')),
+  }
+  const projectUrl = maybeString(getInput(context, 'project-url', 'project.url'))
+  if (projectUrl || Object.values(projectFields).some(Boolean) || Object.values(projectStatus).some(Boolean)) {
+    config.project = {
+      url: projectUrl,
+      fields: projectFields,
+      status: projectStatus,
+    }
+  }
+
+  return config
+}
+
+function mergeConfig(base: ConfigFile, override: ConfigFile): ConfigFile {
+  return {
+    ...base,
+    ...override,
+    labels: { ...(base.labels || base.label || {}), ...(override.labels || override.label || {}) },
+    label: { ...(base.label || base.labels || {}), ...(override.label || override.labels || {}) },
+    messages: { ...(base.messages || {}), ...(override.messages || {}) },
+    close: { ...(base.close || {}), ...(override.close || {}) },
+    logs: { ...(base.logs || base.log || {}), ...(override.logs || override.log || {}) },
+    log: { ...(base.log || base.logs || {}), ...(override.log || override.logs || {}) },
+    project: {
+      ...(base.project || {}),
+      ...(override.project || {}),
+      fields: { ...(base.project?.fields || {}), ...(override.project?.fields || {}) },
+      status: { ...(base.project?.status || {}), ...(override.project?.status || {}) },
     },
-  },
+    requirements: override.requirements || base.requirements,
+  }
+}
+
+export async function loadConfig(context: ActionContext): Promise<RuntimeConfig> {
+  const raw = mergeConfig(
+    mergeConfig((await context.config<ConfigFile>('label-gun.yml')) || {}, parseInlineConfig(context)),
+    legacyInputConfig(context),
+  )
+  const labels = raw.labels || raw.label || {}
+  const logs = raw.logs || raw.log || {}
+  const project = raw.project || {}
+  const projectStatus = project.status || {}
+  const resolvedStatusNames: Record<ManagedStatus, string> = {
+    blocked: maybeString(projectStatus.blocked) || defaultProjectStatus.blocked,
+    awaiting: maybeString(projectStatus.awaiting) || defaultProjectStatus.awaiting,
+    'in-progress': maybeString(projectStatus.inProgress || projectStatus['in-progress']) || defaultProjectStatus['in-progress'],
+    new: maybeString(projectStatus.new) || defaultProjectStatus.new,
+    backlog: maybeString(projectStatus.backlog) || defaultProjectStatus.backlog,
+  }
+
+  const regexSource = maybeString(logs.regex)
+  const awaitingLabel = maybeString(labels.awaiting) || 'awaiting-user-feedback'
+  const requirements = (raw.requirements || [])
+    .map(requirement => toRequirement(requirement, awaitingLabel))
+    .filter((requirement): requirement is NonNullable<typeof requirement> => !!requirement)
+
+  if (regexSource) {
+    const legacyRequirement = toRequirement({
+      name: 'legacy-log-requirement',
+      events: ['issues.opened'],
+      actor: 'user',
+      pattern: regexSource,
+      label: maybeString(logs.label),
+      message: maybeString(raw.messages?.missingLog) || maybeString(logs.message),
+      addLabels: [awaitingLabel, ...(maybeString(logs.label) ? [maybeString(logs.label) as string] : [])],
+      removeLabels: maybeString(logs.label) ? [maybeString(logs.label) as string] : [],
+      status: 'awaiting',
+    }, awaitingLabel)
+
+    if (legacyRequirement) requirements.push(legacyRequirement)
+  }
+
+  return {
+    verbose: !!raw.verbose,
+    assign: !!raw.assign,
+    statusNames: resolvedStatusNames,
+    requirements,
+    labels: {
+      awaiting: awaitingLabel,
+      active: toList(labels.active),
+      exempt: toList(labels.exempt),
+      reopened: maybeString(labels.reopened),
+      blocked: toList(labels.blocked),
+      canClose: toList(labels.canClose || labels.canclose),
+    },
+    close: {
+      message: maybeString(raw.messages?.closedByUser) || maybeString(raw.close?.message),
+    },
+    logs: {
+      regexSource,
+      regex: regexSource ? new RegExp(regexSource) : undefined,
+      label: maybeString(logs.label),
+      message: maybeString(raw.messages?.missingLog) || maybeString(logs.message),
+    },
+    project: maybeString(project.url)
+      ? {
+        url: maybeString(project.url) as string,
+        fields: {
+          status: maybeFieldName(project.fields?.status, 'Status'),
+          endDate: maybeFieldName(project.fields?.endDate, 'End date'),
+          users: maybeFieldName(project.fields?.users, 'Users'),
+        },
+        status: resolvedStatusNames,
+      }
+      : undefined,
+  }
 }

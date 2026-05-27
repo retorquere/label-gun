@@ -40,6 +40,9 @@ function createContext(config, issue, operations, event = {}) {
       issue,
       ...(commentBody ? { comment: { body: commentBody } } : {}),
     },
+    getInput() {
+      return ''
+    },
     config: async () => config,
     issue(extra = {}) {
       return {
