@@ -191,15 +191,17 @@ async function update(issue: Issue, body: string): Promise<void> {
   }
   else if (sender.user) {
     if (event === 'issues.closed') { // user closed the issue
-      if (!label.has(config.label.reopened, config.label.canclose)) {
+      const canUserCloseIssue = label.has(config.label.reopened, config.label.canclose)
+      if (!canUserCloseIssue) {
         report('user closed active issue, reopen')
-        if (config.close.message)
+        if (config.close.message) {
           await octokit.rest.issues.createComment({
             owner,
             repo,
             issue_number: issue.number,
             body: config.close.message.replace('{{username}}', sender.login),
           })
+        }
         setStatus('in-progress')
         await octokit.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'open' })
       }

@@ -23974,15 +23974,17 @@ ${value}`;
       setStatus("awaiting");
     } else if (sender.user) {
       if (event === "issues.closed") {
-        if (!label.has(config.label.reopened, config.label.canclose)) {
+        const canUserCloseIssue = label.has(config.label.reopened, config.label.canclose);
+        if (!canUserCloseIssue) {
           report("user closed active issue, reopen");
-          if (config.close.message)
+          if (config.close.message) {
             await octokit.rest.issues.createComment({
               owner,
               repo,
               issue_number: issue2.number,
               body: config.close.message.replace("{{username}}", sender.login)
             });
+          }
           setStatus("in-progress");
           await octokit.rest.issues.update({ owner, repo, issue_number: issue2.number, state: "open" });
         }
