@@ -259,7 +259,7 @@ export async function handleLabelGunEvent(context: LabelGunContext): Promise<Act
   }
   else {
     if (event === 'issues.closed') {
-      const canUserCloseIssue = labels.has(config.labels.reopened || '', ...config.labels.canClose)
+      const canUserCloseIssue = labels.has(config.labels.reopened || '', ...config.labels.canClose) || !summary.owners.length
 
       if (!canUserCloseIssue) {
         report(context, config.verbose, 'user closed active issue, reopening')

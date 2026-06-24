@@ -210,38 +210,38 @@ function legacyInputConfig(context: ActionContext): ConfigFile {
   if (typeof assign === 'boolean') config.assign = assign
 
   const labels: LabelConfigFile = {
-    awaiting: maybeString(getInput(context, 'label-awaiting', 'label.awaiting')),
-    active: maybeString(getInput(context, 'label-active', 'label.active')),
-    exempt: maybeString(getInput(context, 'label-exempt', 'label.exempt')),
-    reopened: maybeString(getInput(context, 'label-reopened', 'label.reopened')),
-    blocked: maybeString(getInput(context, 'label-blocked', 'label.blocked')),
-    canclose: maybeString(getInput(context, 'label-canclose', 'label.canclose')),
+    awaiting: maybeString(getInput(context, 'label-awaiting')),
+    active: maybeString(getInput(context, 'label-active')),
+    exempt: maybeString(getInput(context, 'label-exempt')),
+    reopened: maybeString(getInput(context, 'label-reopened')),
+    blocked: maybeString(getInput(context, 'label-blocked')),
+    canclose: maybeString(getInput(context, 'label-canclose')),
   }
   if (Object.values(labels).some(Boolean)) config.labels = labels
 
-  const closeMessage = maybeString(getInput(context, 'close-message', 'close.message'))
+  const closeMessage = maybeString(getInput(context, 'close-message'))
   if (closeMessage) config.close = { message: closeMessage }
 
   const logs: LogConfigFile = {
-    regex: maybeString(getInput(context, 'log-regex', 'log.regex')),
-    label: maybeString(getInput(context, 'log-label', 'log.label')),
-    message: maybeString(getInput(context, 'log-message', 'log.message')),
+    regex: maybeString(getInput(context, 'log-regex')),
+    label: maybeString(getInput(context, 'log-label')),
+    message: maybeString(getInput(context, 'log-message')),
   }
   if (Object.values(logs).some(Boolean)) config.logs = logs
 
   const projectFields: ProjectFieldConfigFile = {
-    status: maybeString(getInput(context, 'project-field-status', 'project.field.status')),
-    endDate: maybeString(getInput(context, 'project-field-end-date', 'project.field.end-date')),
-    users: maybeString(getInput(context, 'project-field-users', 'project.field.users')),
+    status: maybeString(getInput(context, 'project-field-status')),
+    endDate: maybeString(getInput(context, 'project-field-end-date')),
+    users: maybeString(getInput(context, 'project-field-users')),
   }
   const projectStatus: ProjectStatusConfigFile = {
-    blocked: maybeString(getInput(context, 'project-status-blocked', 'project.status.blocked')),
-    awaiting: maybeString(getInput(context, 'project-status-awaiting', 'project.status.awaiting')),
-    inProgress: maybeString(getInput(context, 'project-status-in-progress', 'project.status.in-progress')),
-    new: maybeString(getInput(context, 'project-status-new', 'project.status.new')),
-    backlog: maybeString(getInput(context, 'project-status-backlog', 'project.status.backlog')),
+    blocked: maybeString(getInput(context, 'project-status-blocked')),
+    awaiting: maybeString(getInput(context, 'project-status-awaiting')),
+    inProgress: maybeString(getInput(context, 'project-status-in-progress')),
+    new: maybeString(getInput(context, 'project-status-new')),
+    backlog: maybeString(getInput(context, 'project-status-backlog')),
   }
-  const projectUrl = maybeString(getInput(context, 'project-url', 'project.url'))
+  const projectUrl = maybeString(getInput(context, 'project-url'))
   if (projectUrl || Object.values(projectFields).some(Boolean) || Object.values(projectStatus).some(Boolean)) {
     config.project = {
       url: projectUrl,
