@@ -27,6 +27,7 @@ function createContext(config, issue, operations, event = {}) {
   const action = event.action || 'closed'
   const commentBody = event.commentBody
   const sender = event.sender || { login: 'reporter', type: 'User' }
+  const issueComments = event.comments || []
 
   return {
     name,
@@ -65,7 +66,7 @@ function createContext(config, issue, operations, event = {}) {
       error() {},
     },
     octokit: {
-      paginate: async () => [],
+      paginate: async () => issueComments,
       graphql: async () => {
         throw new Error('graphql should not be called in this test')
       },
@@ -105,7 +106,7 @@ function createContext(config, issue, operations, event = {}) {
             return { data: {} }
           },
           async listComments() {
-            return { data: [] }
+            return { data: issueComments }
           },
         },
       },
@@ -156,8 +157,24 @@ test('user can close an issue labeled with label.canclose without it being reope
   assert.equal(result.labelsAdded.length, 0)
 })
 
-test('user-closing an issue without label.canclose still reopens it', async () => {
+test('user-closing an issue without owner comments can close it', async () => {
   const result = await runScenario()
+
+  assert.equal(result.reopened.length, 0)
+  assert.equal(result.comments.length, 0)
+})
+
+test('user-closing an issue without label.canclose still reopens it after owner activity', async () => {
+  const result = await runScenario({
+    event: {
+      comments: [
+        {
+          user: { login: 'maintainer' },
+          updated_at: '2026-05-27T13:00:00Z',
+        },
+      ],
+    },
+  })
 
   assert.equal(result.reopened.length, 1)
   assert.equal(result.reopened[0].state, 'open')
